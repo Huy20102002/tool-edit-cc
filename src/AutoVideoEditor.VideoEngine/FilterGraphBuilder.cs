@@ -200,34 +200,29 @@ public class FilterGraphBuilder
         // CapCut-Optimized Hardware & CPU Profiles
         if (encoderName.Contains("nvenc"))
         {
-            // Low Latency High Throughput NVENC profile (reduces GPU fan noise & heat by 70%)
-            sbArgs.Append("-preset p4 -tune ll -cq 22 -pix_fmt yuv420p ");
-            if (preset.BitrateMode == VideoBitrateMode.Custom && preset.CustomVideoBitrateKbps > 0)
-            {
-                sbArgs.Append($"-b:v {preset.CustomVideoBitrateKbps}k -maxrate:v {preset.CustomVideoBitrateKbps * 1.5}k ");
-            }
+            var bitrate = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
+            sbArgs.Append($"-preset p4 -tune ll -b:v {bitrate}k -maxrate:v {bitrate * 1.3:F0}k -bufsize:v {bitrate * 2}k -pix_fmt yuv420p ");
         }
         else if (encoderName.Contains("mf"))
         {
-            var br = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 8000;
+            var br = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
             sbArgs.Append($"-b:v {br}k -pix_fmt yuv420p ");
         }
         else if (encoderName.Contains("qsv"))
         {
-            sbArgs.Append("-preset medium -global_quality 22 -pix_fmt nv12 ");
+            var br = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
+            sbArgs.Append($"-preset medium -b:v {br}k -global_quality 20 -pix_fmt nv12 ");
         }
         else if (encoderName.Contains("amf"))
         {
-            sbArgs.Append("-quality speed -rc cqp -qp_i 22 -qp_p 22 -pix_fmt yuv420p ");
+            var br = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
+            sbArgs.Append($"-quality speed -rc cbr -b:v {br}k -pix_fmt yuv420p ");
         }
         else
         {
             // libx264 (CPU - Fast & lightweight, restricted threads to prevent freezing)
-            sbArgs.Append("-preset superfast -crf 22 -threads 3 -pix_fmt yuv420p ");
-            if (preset.BitrateMode == VideoBitrateMode.Custom && preset.CustomVideoBitrateKbps > 0)
-            {
-                sbArgs.Append($"-b:v {preset.CustomVideoBitrateKbps}k ");
-            }
+            var bitrate = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
+            sbArgs.Append($"-preset superfast -b:v {bitrate}k -threads 3 -pix_fmt yuv420p ");
         }
 
         // Audio encoder settings (AAC 192k stereo)
