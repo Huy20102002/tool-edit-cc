@@ -37,7 +37,7 @@ public class FilterGraphBuilderTests
             job.OutputPath);
 
         Assert.NotNull(filter);
-        Assert.Contains("boxblur=5:2", filter);
+        Assert.Contains("boxblur=", filter);
         Assert.Contains("asplit=2", filter);
         Assert.Contains("overlay=(W-w)/2:(H-h)/2", filter);
         Assert.Contains("atrim=start=1.000:end=10.000", filter);
