@@ -28,3 +28,9 @@ public class TransitionCandidateScore
     public double Score { get; set; }
     public string Reason { get; set; } = string.Empty;
 }
+
+public class TransitionTypeOption
+{
+    public TransitionType Type { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+}

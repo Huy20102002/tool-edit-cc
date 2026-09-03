@@ -100,7 +100,18 @@ public partial class HomeViewModel : ObservableObject
     private TransitionType _quickTransitionType = TransitionType.Smart;
 
     [ObservableProperty]
-    private ObservableCollection<TransitionType> _availableTransitionTypes = new(Enum.GetValues<TransitionType>());
+    private ObservableCollection<TransitionTypeOption> _availableTransitionOptions = new()
+    {
+        new TransitionTypeOption { Type = TransitionType.Smart, DisplayName = "Thông minh" },
+        new TransitionTypeOption { Type = TransitionType.Random, DisplayName = "Ngẫu nhiên" },
+        new TransitionTypeOption { Type = TransitionType.Dissolve, DisplayName = "Hòa tan" },
+        new TransitionTypeOption { Type = TransitionType.Zoom, DisplayName = "Thu phóng" },
+        new TransitionTypeOption { Type = TransitionType.Fade, DisplayName = "Mờ dần" },
+        new TransitionTypeOption { Type = TransitionType.Slide, DisplayName = "Trượt" },
+        new TransitionTypeOption { Type = TransitionType.Wipe, DisplayName = "Quét" },
+        new TransitionTypeOption { Type = TransitionType.Cut, DisplayName = "Chỉ cắt" },
+        new TransitionTypeOption { Type = TransitionType.None, DisplayName = "Không dùng" }
+    };
 
     [ObservableProperty]
     private FileMappingMode _mappingMode = FileMappingMode.ByName;

@@ -185,16 +185,16 @@
                                     <TextBlock Text="Chuyển Cảnh Mặc Định:" Foreground="#06b6d4" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12" />
                                     
                                     <!-- Stepper [ - ] [ 2 ] [ + ] -->
-                                    <Border Background="#09090b" BorderBrush="#27272a" BorderThickness="1" CornerRadius="4" Padding="1" VerticalAlignment="Center" Margin="0,0,8,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Content="−" Command="{Binding DecrementQuickTransitionCommand}" Style="{StaticResource SecondaryButtonStyle}" Width="24" Height="24" Padding="0" FontSize="12" />
-                                            <TextBox Text="{Binding QuickTransitionCount, UpdateSourceTrigger=PropertyChanged}" Width="35" Height="24" BorderThickness="0" Background="Transparent" Foreground="#06b6d4" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                                            <Button Content="+" Command="{Binding IncrementQuickTransitionCommand}" Style="{StaticResource SecondaryButtonStyle}" Width="24" Height="24" Padding="0" FontSize="12" />
+                                    <Border Background="#18181b" BorderBrush="#3f3f46" BorderThickness="1" CornerRadius="6" Height="30" Padding="2" VerticalAlignment="Center" Margin="0,0,8,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="−" Command="{Binding DecrementQuickTransitionCommand}" Style="{StaticResource StepperButtonStyle}" Width="26" Height="26" />
+                                            <TextBox Text="{Binding QuickTransitionCount, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}" Width="36" Height="26" />
+                                            <Button Content="+" Command="{Binding IncrementQuickTransitionCommand}" Style="{StaticResource StepperButtonStyle}" Width="26" Height="26" />
                                         </StackPanel>
                                     </Border>
 
                                     <!-- Transition Type ComboBox -->
-                                    <ComboBox ItemsSource="{Binding AvailableTransitionTypes}" SelectedItem="{Binding QuickTransitionType}" Height="28" Width="110" Padding="6,2" FontSize="11" />
+                                    <ComboBox ItemsSource="{Binding AvailableTransitionOptions}" SelectedValue="{Binding QuickTransitionType}" SelectedValuePath="Type" DisplayMemberPath="DisplayName" Height="30" Width="120" Padding="8,4" FontSize="12" />
                                 </StackPanel>
                             </WrapPanel>
                         </Grid>
@@ -314,20 +314,21 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Custom Transition Stepper [ - ] [ 2 ] [ + ] -->
-                                    <DataGridTemplateColumn Header="Chuyển Cảnh" Width="110">
+                                    <DataGridTemplateColumn Header="Chuyển Cảnh" Width="115">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Border Background="#09090b" BorderBrush="#3f3f46" BorderThickness="1" CornerRadius="4" Padding="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                    <StackPanel Orientation="Horizontal">
+                                                <Border Background="#121215" BorderBrush="#3f3f46" BorderThickness="1" CornerRadius="6" Height="28" Padding="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                         <Button Content="−" ToolTip="Giảm số lượng chuyển cảnh"
                                                                 Command="{Binding DataContext.DecrementTransitionCountCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 CommandParameter="{Binding}"
-                                                                Style="{StaticResource SecondaryButtonStyle}" Width="22" Height="22" Padding="0" FontSize="11" />
-                                                        <TextBox Text="{Binding TransitionCount, UpdateSourceTrigger=PropertyChanged}" Width="32" Height="22" BorderThickness="0" Background="Transparent" Foreground="#06b6d4" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="Số lượng chuyển cảnh cho video này (0 = Không dùng)" />
+                                                                Style="{StaticResource StepperButtonStyle}" Width="24" Height="24" />
+                                                        <TextBox Text="{Binding TransitionCount, UpdateSourceTrigger=PropertyChanged}"
+                                                                 Style="{StaticResource StepperTextBoxStyle}" Width="32" Height="24" ToolTip="Số lượng chuyển cảnh cho video này (0 = Không dùng)" />
                                                         <Button Content="+" ToolTip="Tăng số lượng chuyển cảnh"
                                                                 Command="{Binding DataContext.IncrementTransitionCountCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 CommandParameter="{Binding}"
-                                                                Style="{StaticResource SecondaryButtonStyle}" Width="22" Height="22" Padding="0" FontSize="11" />
+                                                                Style="{StaticResource StepperButtonStyle}" Width="24" Height="24" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>
@@ -335,12 +336,14 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Custom Transition Type -->
-                                    <DataGridTemplateColumn Header="Kiểu" Width="105">
+                                    <DataGridTemplateColumn Header="Kiểu" Width="115">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <ComboBox ItemsSource="{Binding DataContext.AvailableTransitionTypes, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                          SelectedItem="{Binding TransitionType, UpdateSourceTrigger=PropertyChanged}"
-                                                          Height="26" Padding="4,1" FontSize="11" VerticalContentAlignment="Center" />
+                                                <ComboBox ItemsSource="{Binding DataContext.AvailableTransitionOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                          SelectedValue="{Binding TransitionType, UpdateSourceTrigger=PropertyChanged}"
+                                                          SelectedValuePath="Type"
+                                                          DisplayMemberPath="DisplayName"
+                                                          Height="28" Padding="6,2" FontSize="11" VerticalContentAlignment="Center" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
