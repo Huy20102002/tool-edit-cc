@@ -14,7 +14,7 @@ public class AppSettings
         "AutoVideoEditor"
     );
 
-    public int MaxParallelJobs { get; set; } = Math.Max(1, Environment.ProcessorCount / 2);
+    public int MaxParallelJobs { get; set; } = 2;
     public HardwareEncoderType HardwareEncoderPreference { get; set; } = HardwareEncoderType.Auto;
     public Guid DefaultPresetId { get; set; } = Guid.Parse("11111111-1111-1111-1111-111111111111");
     public OverwritePolicy OverwritePolicy { get; set; } = OverwritePolicy.AutoRename;

@@ -43,6 +43,15 @@ public class FFmpegProcessRunner : IFFmpegProcessRunner
             {
                 throw new InvalidOperationException($"Failed to start process: {executablePath}");
             }
+
+            try
+            {
+                process.PriorityClass = ProcessPriorityClass.BelowNormal;
+            }
+            catch
+            {
+                // Ignore priority access errors
+            }
         }
         catch (Exception ex)
         {
