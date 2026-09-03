@@ -39,6 +39,12 @@ public partial class MatchedPairItem : ObservableObject
     private string _customOutputName = string.Empty;
 
     [ObservableProperty]
+    private int _transitionCount = 2;
+
+    [ObservableProperty]
+    private TransitionType _transitionType = TransitionType.Smart;
+
+    [ObservableProperty]
     private double _videoTrimStart;
 
     [ObservableProperty]
@@ -88,6 +94,15 @@ public partial class HomeViewModel : ObservableObject
     private string _baseOutputName = string.Empty;
 
     [ObservableProperty]
+    private int _quickTransitionCount = 2;
+
+    [ObservableProperty]
+    private TransitionType _quickTransitionType = TransitionType.Smart;
+
+    [ObservableProperty]
+    private ObservableCollection<TransitionType> _availableTransitionTypes = new(Enum.GetValues<TransitionType>());
+
+    [ObservableProperty]
     private FileMappingMode _mappingMode = FileMappingMode.ByName;
 
     [ObservableProperty]
@@ -129,6 +144,55 @@ public partial class HomeViewModel : ObservableObject
         OutputDirectory = settings.OutputDirectory;
     }
 
+    partial void OnQuickTransitionCountChanged(int value)
+    {
+        foreach (var pair in MatchedPairs)
+        {
+            pair.TransitionCount = value;
+        }
+    }
+
+    partial void OnQuickTransitionTypeChanged(TransitionType value)
+    {
+        foreach (var pair in MatchedPairs)
+        {
+            pair.TransitionType = value;
+        }
+    }
+
+    [RelayCommand]
+    public void IncrementQuickTransition()
+    {
+        QuickTransitionCount++;
+    }
+
+    [RelayCommand]
+    public void DecrementQuickTransition()
+    {
+        if (QuickTransitionCount > 0)
+        {
+            QuickTransitionCount--;
+        }
+    }
+
+    [RelayCommand]
+    public void IncrementTransitionCount(MatchedPairItem? item)
+    {
+        if (item != null)
+        {
+            item.TransitionCount++;
+        }
+    }
+
+    [RelayCommand]
+    public void DecrementTransitionCount(MatchedPairItem? item)
+    {
+        if (item != null && item.TransitionCount > 0)
+        {
+            item.TransitionCount--;
+        }
+    }
+
     partial void OnBaseOutputNameChanged(string value)
     {
         ApplyBaseOutputNameToPairs(value);
@@ -158,8 +222,13 @@ public partial class HomeViewModel : ObservableObject
     partial void OnSelectedPresetChanged(ExportPreset? value)
     {
         if (value == null) return;
+        QuickTransitionCount = value.TransitionCount;
+        QuickTransitionType = value.TransitionType;
+
         foreach (var pair in MatchedPairs)
         {
+            pair.TransitionCount = value.TransitionCount;
+            pair.TransitionType = value.TransitionType;
             if (pair.VideoTrimStart == 0) pair.VideoTrimStart = value.VideoTrimStartSeconds;
             if (pair.VideoTrimEnd == 0) pair.VideoTrimEnd = value.VideoTrimEndSeconds;
             if (pair.VoiceTrimStart == 0) pair.VoiceTrimStart = value.VoiceTrimStartSeconds;
@@ -367,7 +436,9 @@ public partial class HomeViewModel : ObservableObject
                 VoiceTrimStartSeconds = pair.VoiceTrimStart,
                 VoiceTrimEndSeconds = pair.VoiceTrimEnd,
                 ExtraEndPaddingSeconds = pair.ExtraEndPadding,
-                CustomOutputName = !string.IsNullOrWhiteSpace(pair.CustomOutputName) ? pair.CustomOutputName.Trim() : null
+                CustomOutputName = !string.IsNullOrWhiteSpace(pair.CustomOutputName) ? pair.CustomOutputName.Trim() : null,
+                CustomTransitionCount = pair.TransitionCount,
+                CustomTransitionType = pair.TransitionType
             };
             jobs.Add(job);
         }
@@ -444,6 +515,8 @@ public partial class HomeViewModel : ObservableObject
         var defaultVoiceTrimStart = SelectedPreset?.VoiceTrimStartSeconds ?? 0.0;
         var defaultVoiceTrimEnd = SelectedPreset?.VoiceTrimEndSeconds ?? 0.0;
         var defaultExtraEnd = SelectedPreset?.ExtraEndPaddingSeconds ?? 0.0;
+        var defaultTransCount = SelectedPreset?.TransitionCount ?? QuickTransitionCount;
+        var defaultTransType = SelectedPreset?.TransitionType ?? QuickTransitionType;
 
         var pairs = new List<MatchedPairItem>();
         var usedVoices = new HashSet<string>();
@@ -476,6 +549,8 @@ public partial class HomeViewModel : ObservableObject
                     VideoPaths = new List<string> { video },
                     VoicePath = voiceToAssign,
                     CustomOutputName = customName,
+                    TransitionCount = defaultTransCount,
+                    TransitionType = defaultTransType,
                     VideoTrimStart = defaultVTrimStart,
                     VideoTrimEnd = defaultVTrimEnd,
                     VoiceTrimStart = defaultVoiceTrimStart,
@@ -498,6 +573,8 @@ public partial class HomeViewModel : ObservableObject
                     VideoPaths = new List<string> { vPath },
                     VoicePath = voiceToAssign,
                     CustomOutputName = customName,
+                    TransitionCount = defaultTransCount,
+                    TransitionType = defaultTransType,
                     VideoTrimStart = defaultVTrimStart,
                     VideoTrimEnd = defaultVTrimEnd,
                     VoiceTrimStart = defaultVoiceTrimStart,

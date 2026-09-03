@@ -74,3 +74,16 @@ public enum VideoBitrateMode
     High,
     Custom
 }
+
+public enum TransitionType
+{
+    None,       // Không dùng transition
+    Cut,        // Cắt tức thì
+    Fade,       // Mờ dần (Fade)
+    Dissolve,   // Hòa tan (Dissolve)
+    Zoom,       // Thu phóng (Zoom)
+    Slide,      // Trượt (Slide)
+    Wipe,       // Quét (Wipe)
+    Random,     // Ngẫu nhiên không lặp
+    Smart       // Thông minh tự chọn theo nhịp cảnh
+}

@@ -1,3 +1,4 @@
+using AutoVideoEditor.Core.Enums;
 using AutoVideoEditor.Core.Models;
 
 namespace AutoVideoEditor.Core.Interfaces;
@@ -49,6 +50,17 @@ public interface IVideoAnalyzer
         CancellationToken cancellationToken = default);
 }
 
+public interface ITransitionPlanner
+{
+    List<TransitionPlanItem> PlanTransitions(
+        IReadOnlyList<SceneSegment> scenes,
+        int requestedTransitionCount,
+        TransitionType requestedType,
+        double defaultDurationSeconds = 0.20,
+        double minSpacingSeconds = 2.0,
+        IReadOnlyList<SpeechSegment>? speechSegments = null);
+}
+
 public interface ITimelineBuilder
 {
     TimelinePlan BuildTimeline(
@@ -57,7 +69,10 @@ public interface ITimelineBuilder
         ExportPreset preset,
         double? customTrimStart = null,
         double? customTrimEnd = null,
-        double? customExtraEnd = null);
+        double? customExtraEnd = null,
+        int? customTransitionCount = null,
+        TransitionType? customTransitionType = null,
+        IReadOnlyList<SceneSegment>? detectedScenes = null);
 }
 
 public interface IVideoRenderer

@@ -144,52 +144,59 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Quick Trim & Outro Padding Settings Row (Defaults) -->
+                    <!-- Quick Settings Row (Defaults for Trim, Outro & Transitions) -->
                     <Border Grid.Row="1" Background="#121215" BorderBrush="#27272a" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,12">
                         <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Group 1: Trimming -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,16,4" DataContext="{Binding SelectedPreset}">
+                                    <TextBlock Text="✂️" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBlock Text="Cắt Video:" Foreground="#a1a1aa" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" />
+                                    <TextBox Text="{Binding VideoTrimStartSeconds, UpdateSourceTrigger=PropertyChanged}" Width="45" Height="26" Padding="2,1" ToolTip="Cắt đầu video (s)" HorizontalContentAlignment="Center" />
+                                    <TextBlock Text=" / " Foreground="#71717a" VerticalAlignment="Center" Margin="2,0" />
+                                    <TextBox Text="{Binding VideoTrimEndSeconds, UpdateSourceTrigger=PropertyChanged}" Width="45" Height="26" Padding="2,1" ToolTip="Cắt đuôi video (s)" HorizontalContentAlignment="Center" />
+                                    <TextBlock Text="s" Foreground="#71717a" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                </StackPanel>
 
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock Text="✂️" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                <TextBlock Text="Cắt Mặc Định / Dư Cuối:" FontWeight="SemiBold" Foreground="#eab308" VerticalAlignment="Center" />
-                            </StackPanel>
+                                <!-- Group 2: Voice Trimming -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,16,4" DataContext="{Binding SelectedPreset}">
+                                    <TextBlock Text="🎙️" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBlock Text="Cắt Voice:" Foreground="#a1a1aa" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" />
+                                    <TextBox Text="{Binding VoiceTrimStartSeconds, UpdateSourceTrigger=PropertyChanged}" Width="45" Height="26" Padding="2,1" ToolTip="Cắt đầu voice (s)" HorizontalContentAlignment="Center" />
+                                    <TextBlock Text=" / " Foreground="#71717a" VerticalAlignment="Center" Margin="2,0" />
+                                    <TextBox Text="{Binding VoiceTrimEndSeconds, UpdateSourceTrigger=PropertyChanged}" Width="45" Height="26" Padding="2,1" ToolTip="Cắt đuôi voice (s)" HorizontalContentAlignment="Center" />
+                                    <TextBlock Text="s" Foreground="#71717a" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                </StackPanel>
 
-                            <Grid Grid.Column="1" DataContext="{Binding SelectedPreset}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="65" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="65" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="65" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="65" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="65" />
-                                </Grid.ColumnDefinitions>
+                                <!-- Group 3: Outro Padding -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,16,4" DataContext="{Binding SelectedPreset}">
+                                    <TextBlock Text="⏱️" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBlock Text="Dư cuối:" Foreground="#fbbf24" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" />
+                                    <TextBox Text="{Binding ExtraEndPaddingSeconds, UpdateSourceTrigger=PropertyChanged}" Width="45" Height="26" Padding="2,1" ToolTip="Số giây video chạy thêm sau khi giọng đọc kết thúc" HorizontalContentAlignment="Center" Foreground="#fbbf24" FontWeight="Bold" />
+                                    <TextBlock Text="s" Foreground="#fbbf24" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                </StackPanel>
 
-                                <TextBlock Grid.Column="0" Text="Đầu Video (s):" Foreground="#a1a1aa" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                <TextBox Grid.Column="1" Text="{Binding VideoTrimStartSeconds, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" />
+                                <!-- Group 4: Transition Stepper & Type -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,8,4">
+                                    <TextBlock Text="✨" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBlock Text="Chuyển Cảnh Mặc Định:" Foreground="#06b6d4" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12" />
+                                    
+                                    <!-- Stepper [ - ] [ 2 ] [ + ] -->
+                                    <Border Background="#09090b" BorderBrush="#27272a" BorderThickness="1" CornerRadius="4" Padding="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="−" Command="{Binding DecrementQuickTransitionCommand}" Style="{StaticResource SecondaryButtonStyle}" Width="24" Height="24" Padding="0" FontSize="12" />
+                                            <TextBox Text="{Binding QuickTransitionCount, UpdateSourceTrigger=PropertyChanged}" Width="35" Height="24" BorderThickness="0" Background="Transparent" Foreground="#06b6d4" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                                            <Button Content="+" Command="{Binding IncrementQuickTransitionCommand}" Style="{StaticResource SecondaryButtonStyle}" Width="24" Height="24" Padding="0" FontSize="12" />
+                                        </StackPanel>
+                                    </Border>
 
-                                <TextBlock Grid.Column="3" Text="Đuôi Video (s):" Foreground="#a1a1aa" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                <TextBox Grid.Column="4" Text="{Binding VideoTrimEndSeconds, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" />
-
-                                <TextBlock Grid.Column="6" Text="Đầu Voice (s):" Foreground="#a1a1aa" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                <TextBox Grid.Column="7" Text="{Binding VoiceTrimStartSeconds, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" />
-
-                                <TextBlock Grid.Column="9" Text="Đuôi Voice (s):" Foreground="#a1a1aa" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                <TextBox Grid.Column="10" Text="{Binding VoiceTrimEndSeconds, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" />
-
-                                <TextBlock Grid.Column="12" Text="Dư Cuối Video (s):" Foreground="#eab308" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="Thời gian video tiếp tục chạy thêm sau khi giọng đọc đã kết thúc" />
-                                <TextBox Grid.Column="13" Text="{Binding ExtraEndPaddingSeconds, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" ToolTip="Thời gian video tiếp tục chạy thêm sau khi giọng đọc đã kết thúc (tính bằng giây)" />
-                            </Grid>
+                                    <!-- Transition Type ComboBox -->
+                                    <ComboBox ItemsSource="{Binding AvailableTransitionTypes}" SelectedItem="{Binding QuickTransitionType}" Height="28" Width="110" Padding="6,2" FontSize="11" />
+                                </StackPanel>
+                            </WrapPanel>
                         </Grid>
                     </Border>
 
@@ -201,7 +208,7 @@
                             <Grid Margin="0,2,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="230" />
+                                    <ColumnDefinition Width="220" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
@@ -242,7 +249,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Video File & Change Button -->
-                                    <DataGridTemplateColumn Header="File Video" Width="1.8*">
+                                    <DataGridTemplateColumn Header="File Video" Width="1.5*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Grid VerticalAlignment="Center" Margin="4,0">
@@ -261,7 +268,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Voice File & Assign Button -->
-                                    <DataGridTemplateColumn Header="File Voice" Width="1.8*">
+                                    <DataGridTemplateColumn Header="File Voice" Width="1.5*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Grid VerticalAlignment="Center" Margin="4,0">
@@ -296,7 +303,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Custom Output Name Column -->
-                                    <DataGridTemplateColumn Header="Tên File Xuất" Width="1.8*">
+                                    <DataGridTemplateColumn Header="Tên File Xuất" Width="1.4*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding CustomOutputName, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="6,2" 
@@ -306,8 +313,40 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
+                                    <!-- Custom Transition Stepper [ - ] [ 2 ] [ + ] -->
+                                    <DataGridTemplateColumn Header="Chuyển Cảnh" Width="110">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#09090b" BorderBrush="#3f3f46" BorderThickness="1" CornerRadius="4" Padding="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="−" ToolTip="Giảm số lượng chuyển cảnh"
+                                                                Command="{Binding DataContext.DecrementTransitionCountCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}"
+                                                                Style="{StaticResource SecondaryButtonStyle}" Width="22" Height="22" Padding="0" FontSize="11" />
+                                                        <TextBox Text="{Binding TransitionCount, UpdateSourceTrigger=PropertyChanged}" Width="32" Height="22" BorderThickness="0" Background="Transparent" Foreground="#06b6d4" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="Số lượng chuyển cảnh cho video này (0 = Không dùng)" />
+                                                        <Button Content="+" ToolTip="Tăng số lượng chuyển cảnh"
+                                                                Command="{Binding DataContext.IncrementTransitionCountCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}"
+                                                                Style="{StaticResource SecondaryButtonStyle}" Width="22" Height="22" Padding="0" FontSize="11" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Custom Transition Type -->
+                                    <DataGridTemplateColumn Header="Kiểu" Width="105">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{Binding DataContext.AvailableTransitionTypes, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                          SelectedItem="{Binding TransitionType, UpdateSourceTrigger=PropertyChanged}"
+                                                          Height="26" Padding="4,1" FontSize="11" VerticalContentAlignment="Center" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <!-- Trim Video Start -->
-                                    <DataGridTemplateColumn Header="Cắt đầu Video (s)" Width="1.1*">
+                                    <DataGridTemplateColumn Header="Cắt đầu Video (s)" Width="0.9*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding VideoTrimStart, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
@@ -318,7 +357,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Trim Video End -->
-                                    <DataGridTemplateColumn Header="Cắt đuôi Video (s)" Width="1.1*">
+                                    <DataGridTemplateColumn Header="Cắt đuôi Video (s)" Width="0.9*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding VideoTrimEnd, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
@@ -329,7 +368,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Trim Voice Start -->
-                                    <DataGridTemplateColumn Header="Cắt đầu Voice (s)" Width="1.1*">
+                                    <DataGridTemplateColumn Header="Cắt đầu Voice (s)" Width="0.9*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding VoiceTrimStart, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
@@ -340,7 +379,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Trim Voice End -->
-                                    <DataGridTemplateColumn Header="Cắt đuôi Voice (s)" Width="1.1*">
+                                    <DataGridTemplateColumn Header="Cắt đuôi Voice (s)" Width="0.9*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding VoiceTrimEnd, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
@@ -351,7 +390,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Outro Padding -->
-                                    <DataGridTemplateColumn Header="Dư cuối (s)" Width="0.9*">
+                                    <DataGridTemplateColumn Header="Dư cuối (s)" Width="0.8*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding ExtraEndPadding, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
@@ -362,11 +401,11 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Delete Row Action Button -->
-                                    <DataGridTemplateColumn Header="Xóa" Width="45">
+                                    <DataGridTemplateColumn Header="Xóa" Width="40">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Button Content="✕" ToolTip="Xóa dòng này" Style="{StaticResource DangerButtonStyle}" 
-                                                        Padding="0" Width="26" Height="26" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        Padding="0" Width="24" Height="24" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                         Command="{Binding DataContext.RemovePairCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}" />
                                             </DataTemplate>
@@ -386,7 +425,7 @@
 
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="{Binding MatchSummaryText}" FontSize="14" FontWeight="SemiBold" Foreground="#10b981" />
-                            <TextBlock Text="Cắt khoảng lặng tự động, lặp video thông minh và xuất hàng loạt trong nền." FontSize="12" Foreground="#71717a" Margin="0,2,0,0" />
+                            <TextBlock Text="Cắt khoảng lặng tự động, phân bố chuyển cảnh thông minh và xuất hàng loạt trong nền." FontSize="12" Foreground="#71717a" Margin="0,2,0,0" />
                         </StackPanel>
 
                         <!-- BIG ACTION BUTTON -->

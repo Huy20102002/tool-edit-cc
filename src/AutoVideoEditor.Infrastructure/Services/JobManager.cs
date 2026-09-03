@@ -10,6 +10,7 @@ public class JobManager : IJobManager
 {
     private readonly IAudioAnalyzer _audioAnalyzer;
     private readonly IFFprobeService _probeService;
+    private readonly ISceneDetector? _sceneDetector;
     private readonly ITimelineBuilder _timelineBuilder;
     private readonly IVideoRenderer _videoRenderer;
     private readonly ISettingsService _settingsService;
@@ -42,10 +43,12 @@ public class JobManager : IJobManager
         ISettingsService settingsService,
         ITempFileManager tempFileManager,
         ILogService logService,
+        ISceneDetector? sceneDetector = null,
         ILogger<JobManager>? logger = null)
     {
         _audioAnalyzer = audioAnalyzer;
         _probeService = probeService;
+        _sceneDetector = sceneDetector;
         _timelineBuilder = timelineBuilder;
         _videoRenderer = videoRenderer;
         _settingsService = settingsService;
@@ -391,14 +394,67 @@ public class JobManager : IJobManager
                 _logService.LogInfo($"Thêm dư cuối video (Outro hold): +{extraEnd:F1}s | Tổng thời lượng video: {(job.VoiceAnalysis.ProcessedDurationSeconds + extraEnd):F2}s", jId, tag);
             }
 
-            // 4. Build Timeline Plan
+            // 4. Scene Detection & Timeline Plan
             UpdateJobState(job, JobStatus.BuildingTimeline, "Đang xây dựng timeline...", 25);
             _logService.LogInfo("Đang xây dựng timeline video theo thời lượng voice...", jId, tag);
             if (vidTrimStart > 0 || vidTrimEnd > 0)
             {
                 _logService.LogInfo($"Cắt bỏ video riêng cho job: -{vidTrimStart:F1}s đầu, -{vidTrimEnd:F1}s cuối.", jId, tag);
             }
-            job.TimelinePlan = _timelineBuilder.BuildTimeline(job.VideoMetadatas, job.VoiceAnalysis, job.Preset, vidTrimStart, vidTrimEnd, extraEnd);
+
+            // Detect natural scenes if available
+            if (job.VideoPaths.Count == 1 && job.Preset.EnableSmartSceneCut && _sceneDetector != null)
+            {
+                try
+                {
+                    job.DetectedScenes = await _sceneDetector.DetectScenesAsync(job.VideoPaths[0], 0.3, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Scene detection failed, using rhythmic dynamic scenes.");
+                }
+            }
+
+            var reqTransCount = job.CustomTransitionCount ?? job.Preset.TransitionCount;
+            var reqTransType = job.CustomTransitionType ?? job.Preset.TransitionType;
+
+            job.TimelinePlan = _timelineBuilder.BuildTimeline(
+                job.VideoMetadatas,
+                job.VoiceAnalysis,
+                job.Preset,
+                vidTrimStart,
+                vidTrimEnd,
+                extraEnd,
+                reqTransCount,
+                reqTransType,
+                job.DetectedScenes);
+
+            job.PlannedTransitions = job.TimelinePlan.Transitions;
+
+            // Log scenes and transitions in requested user format
+            int totalScenes = job.TimelinePlan.Scenes.Count;
+            int validCutPoints = Math.Max(0, totalScenes - 1);
+            _logService.LogInfo($"Tổng số scene: {totalScenes}", jId, tag);
+            _logService.LogInfo($"Điểm chuyển cảnh hợp lệ: {validCutPoints}", jId, tag);
+            _logService.LogInfo($"Người dùng yêu cầu: {reqTransCount} transition ({reqTransType})", jId, tag);
+
+            if (reqTransCount > validCutPoints && validCutPoints > 0)
+            {
+                _logService.LogWarning($"Video chỉ có {validCutPoints} điểm chuyển cảnh hợp lệ.", jId, tag);
+                _logService.LogWarning($"Số lượng yêu cầu: {reqTransCount}.", jId, tag);
+                _logService.LogInfo($"Tự động giảm xuống: {job.TimelinePlan.ActiveTransitionsCount}.", jId, tag);
+            }
+
+            if (job.TimelinePlan.ActiveTransitionsCount > 0)
+            {
+                _logService.LogInfo("Đang phân bố transition...", jId, tag);
+                int tIndex = 1;
+                foreach (var trans in job.TimelinePlan.Transitions.Where(t => t.IsActiveTransition))
+                {
+                    _logService.LogInfo($"Transition #{tIndex++}: Scene {trans.FromSceneIndex:D2} → Scene {trans.ToSceneIndex:D2} | Type: {trans.TransitionType} | Duration: {trans.DurationSeconds:F2}s", jId, tag);
+                }
+            }
+            _logService.LogInfo($"Tổng transition thực tế: {job.TimelinePlan.ActiveTransitionsCount}", jId, tag);
 
             if (job.TimelinePlan.RequiresVideoTrimming)
             {

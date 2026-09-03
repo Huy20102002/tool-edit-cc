@@ -128,7 +128,7 @@
                         </DataGridTextColumn>
 
                         <!-- Custom Trim & Outro Padding -->
-                        <DataGridTemplateColumn Header="Cắt / Dư cuối" Width="135">
+                        <DataGridTemplateColumn Header="Cắt / Dư cuối" Width="125">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel VerticalAlignment="Center">
@@ -138,6 +138,20 @@
                                         <TextBlock FontSize="10" Foreground="#10b981" Margin="0,2,0,0">
                                             <Run Text="Dư cuối: +" /><Run Text="{Binding ExtraEndPaddingSeconds, StringFormat='{}{0:F1}'}" /><Run Text="s" />
                                         </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Transitions Column -->
+                        <DataGridTemplateColumn Header="Chuyển cảnh" Width="115">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock FontSize="11" Foreground="#06b6d4" FontWeight="SemiBold">
+                                            <Run Text="✨ " /><Run Text="{Binding CustomTransitionCount, FallbackValue='2'}" /><Run Text=" effect" />
+                                        </TextBlock>
+                                        <TextBlock FontSize="10" Foreground="#a1a1aa" Margin="0,2,0,0" Text="{Binding CustomTransitionType, FallbackValue='Smart'}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>

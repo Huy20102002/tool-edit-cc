@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         // Video Engine
         services.AddSingleton<ISceneDetector, SceneDetector>();
         services.AddSingleton<IVideoAnalyzer, VideoAnalyzer>();
+        services.AddSingleton<ITransitionPlanner, TransitionPlanner>();
         services.AddSingleton<ITimelineBuilder, TimelineBuilder>();
         services.AddSingleton<IVideoRenderer, VideoRenderer>();
 

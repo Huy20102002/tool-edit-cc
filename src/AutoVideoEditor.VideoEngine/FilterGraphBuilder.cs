@@ -45,10 +45,27 @@ public class FilterGraphBuilder
         var voiceInputIndex = videoInputs.Count;
         sbArgs.Append($"-i \"{voicePath}\" ");
 
-        // 2. Build Video Filter Graph (CapCut Optimized Ultra-Fast Background Blur)
+        // 2. Build Video Filter Graph (CapCut Optimized Ultra-Fast Background Blur + Transitions)
         string finalVideoLabel;
 
-        if (videoInputs.Count == 1)
+        var activeTransitions = timelinePlan.Transitions.Where(t => t.IsActiveTransition).ToList();
+
+        if (activeTransitions.Count > 0 && timelinePlan.Scenes.Count > 1)
+        {
+            // Build scene-based transition graph with exact xfade offsets
+            finalVideoLabel = BuildSceneTransitionsFilterGraph(
+                sbFilter,
+                videoInputs,
+                job.VideoMetadatas,
+                timelinePlan.Scenes,
+                timelinePlan.Transitions,
+                preset.CropMode,
+                targetW,
+                targetH,
+                fps
+            );
+        }
+        else if (videoInputs.Count == 1)
         {
             var rawDur = job.VideoMetadatas.Count > 0 ? job.VideoMetadatas[0].DurationSeconds : 0;
             var cropFilter = BuildAspectAndCropFilter("0:v", "v_proc", preset.CropMode, targetW, targetH, fps, trimStart, trimEnd, rawDur);
@@ -73,7 +90,14 @@ public class FilterGraphBuilder
             finalVideoLabel = "[v_concat]";
         }
 
-        sbFilter.Append("; ");
+        if (!sbFilter.ToString().TrimEnd().EndsWith(";"))
+        {
+            sbFilter.Append("; ");
+        }
+        else
+        {
+            sbFilter.Append(" ");
+        }
 
         // 3. Build Audio Speech Filter Graph (Silence Removal & Normalization)
         var speechSegments = timelinePlan.AudioSpeechSegments;
@@ -151,7 +175,8 @@ public class FilterGraphBuilder
         }
 
         // 4. Video Codec and Encoder Settings (Standard Universal Compatibility)
-        sbArgs.Append($"-filter_complex \"{sbFilter}\" ");
+        var cleanFilter = sbFilter.ToString().TrimEnd(' ', ';');
+        sbArgs.Append($"-filter_complex \"{cleanFilter}\" ");
         sbArgs.Append($"-map \"{finalVideoLabel}\" -map \"{finalAudioLabel}\" ");
 
         // Truncate precisely at target duration
@@ -203,7 +228,93 @@ public class FilterGraphBuilder
         // Output flags: web streaming optimization (faststart) and overwrite
         sbArgs.Append($"-movflags +faststart -y \"{outputPath}\"");
 
-        return (sbArgs.ToString(), sbFilter.ToString());
+        return (sbArgs.ToString(), cleanFilter);
+    }
+
+    private static string BuildSceneTransitionsFilterGraph(
+        StringBuilder sbFilter,
+        IReadOnlyList<string> videoInputs,
+        IReadOnlyList<MediaFileInfo> videoMetadatas,
+        IReadOnlyList<SceneSegment> scenes,
+        IReadOnlyList<TransitionPlanItem> transitions,
+        CropMode cropMode,
+        int targetW,
+        int targetH,
+        int fps)
+    {
+        // 1. Split single video input into N branches if needed
+        if (videoInputs.Count == 1)
+        {
+            var rawSplitLabels = new List<string>();
+            for (int i = 0; i < scenes.Count; i++)
+            {
+                rawSplitLabels.Add($"[v_in_{i}]");
+            }
+            sbFilter.Append($"[0:v]split={scenes.Count}{string.Join("", rawSplitLabels)}; ");
+        }
+
+        // 2. Process each scene into a scaled/formatted intermediate stream
+        var sceneLabels = new List<string>();
+        for (int i = 0; i < scenes.Count; i++)
+        {
+            var sc = scenes[i];
+            var scLabel = $"sc_{i}";
+            var inputLabel = videoInputs.Count == 1 ? $"v_in_{i}" : $"{Math.Min(i, videoInputs.Count - 1)}:v";
+            var sStart = sc.StartSeconds.ToString("F3", CultureInfo.InvariantCulture);
+            var sEnd = sc.EndSeconds.ToString("F3", CultureInfo.InvariantCulture);
+
+            var trimFilter = $"trim=start={sStart}:end={sEnd},setpts=PTS-STARTPTS,";
+            var cropFilter = BuildAspectAndCropFilterCore(inputLabel, scLabel, cropMode, targetW, targetH, fps, trimFilter);
+            sbFilter.Append(cropFilter);
+            sbFilter.Append("; ");
+            sceneLabels.Add($"[{scLabel}]");
+        }
+
+        // 3. Chain scenes together using xfade for active transitions or concat for cuts
+        string currentStream = sceneLabels[0];
+        double accumulatedDuration = scenes[0].DurationSeconds;
+
+        for (int i = 0; i < transitions.Count && (i + 1) < scenes.Count; i++)
+        {
+            var trans = transitions[i];
+            var nextScene = scenes[i + 1];
+            var nextLabel = sceneLabels[i + 1];
+            var outLabel = $"v_chain_{i}";
+
+            if (trans.IsActiveTransition)
+            {
+                var xfadeType = MapToFFmpegXfade(trans.TransitionType);
+                var durStr = trans.DurationSeconds.ToString("F2", CultureInfo.InvariantCulture);
+                var offset = Math.Max(0.01, accumulatedDuration - trans.DurationSeconds);
+                var offsetStr = offset.ToString("F3", CultureInfo.InvariantCulture);
+
+                sbFilter.Append($"{currentStream}{nextLabel}xfade=transition={xfadeType}:duration={durStr}:offset={offsetStr}[{outLabel}]; ");
+                currentStream = $"[{outLabel}]";
+                accumulatedDuration = offset + nextScene.DurationSeconds;
+            }
+            else
+            {
+                // Pure CUT: concat with next scene
+                sbFilter.Append($"{currentStream}{nextLabel}concat=n=2:v=1:a=0[{outLabel}]; ");
+                currentStream = $"[{outLabel}]";
+                accumulatedDuration += nextScene.DurationSeconds;
+            }
+        }
+
+        return currentStream;
+    }
+
+    private static string MapToFFmpegXfade(TransitionType type)
+    {
+        return type switch
+        {
+            TransitionType.Fade => "fade",
+            TransitionType.Dissolve => "dissolve",
+            TransitionType.Zoom => "circlecrop",
+            TransitionType.Slide => "slideleft",
+            TransitionType.Wipe => "wipeleft",
+            _ => "dissolve"
+        };
     }
 
     private static string BuildAspectAndCropFilter(
@@ -237,6 +348,18 @@ public class FilterGraphBuilder
             trimPrefix = "setpts=PTS-STARTPTS,";
         }
 
+        return BuildAspectAndCropFilterCore(inputLabel, outputLabel, cropMode, targetW, targetH, fps, trimPrefix);
+    }
+
+    private static string BuildAspectAndCropFilterCore(
+        string inputLabel,
+        string outputLabel,
+        CropMode cropMode,
+        int targetW,
+        int targetH,
+        int fps,
+        string trimPrefix)
+    {
         switch (cropMode)
         {
             case CropMode.FitWithBlur:

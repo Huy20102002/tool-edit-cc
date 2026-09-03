@@ -18,6 +18,10 @@ public class VideoJob
     public double VoiceTrimEndSeconds { get; set; }
     public double ExtraEndPaddingSeconds { get; set; } // Dư cuối video (giây)
     public string? CustomOutputName { get; set; } // Tên file xuất tùy chỉnh
+    public int? CustomTransitionCount { get; set; } // Số lượng chuyển cảnh tùy chỉnh cho job
+    public TransitionType? CustomTransitionType { get; set; } // Kiểu chuyển cảnh tùy chỉnh cho job
+    public List<SceneSegment> DetectedScenes { get; set; } = new();
+    public List<TransitionPlanItem> PlannedTransitions { get; set; } = new();
 
     // Primary Display Names
     public string VideoFileName => VideoPaths.Count == 1 

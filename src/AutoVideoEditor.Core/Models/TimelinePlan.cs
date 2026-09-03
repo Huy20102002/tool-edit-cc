@@ -14,6 +14,9 @@ public class TimelinePlan
 {
     public double TargetMasterDurationSeconds { get; set; }
     public List<VideoTimelineSlice> VideoSlices { get; set; } = new();
+    public List<SceneSegment> Scenes { get; set; } = new();
+    public List<TransitionPlanItem> Transitions { get; set; } = new();
+    public int ActiveTransitionsCount => Transitions.Count(t => t.IsActiveTransition);
     public List<SpeechSegment> AudioSpeechSegments { get; set; } = new();
     public bool RequiresVideoLooping { get; set; }
     public bool RequiresVideoTrimming { get; set; }

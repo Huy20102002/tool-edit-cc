@@ -184,6 +184,53 @@
 
                     <Separator Background="#27272a" Margin="0,0,0,16" />
 
+                    <!-- Transitions Section -->
+                    <TextBlock Text="✨ Hiệu Ứng Chuyển Cảnh (Transitions)" FontSize="14" FontWeight="Bold" Foreground="#06b6d4" Margin="0,0,0,8" />
+                    <TextBlock Text="Tự động chọn các điểm cắt đẹp trên timeline và thêm đúng số lượng hiệu ứng chuyển cảnh." FontSize="11" Foreground="#71717a" Margin="0,0,0,12" />
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Số lượng chuyển cảnh:" Foreground="#a1a1aa" Margin="0,0,0,4" ToolTip="Số lượng transition trên 1 video (0 = Chỉ dùng Cut)" />
+                            <TextBox Text="{Binding TransitionCount, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Kiểu chuyển cảnh:" Foreground="#a1a1aa" Margin="0,0,0,4" />
+                            <ComboBox SelectedValue="{Binding TransitionType}" SelectedValuePath="Tag">
+                                <ComboBoxItem Content="Thông minh (Smart)" Tag="{x:Static enums:TransitionType.Smart}" />
+                                <ComboBoxItem Content="Ngẫu nhiên (Random)" Tag="{x:Static enums:TransitionType.Random}" />
+                                <ComboBoxItem Content="Hòa tan (Dissolve)" Tag="{x:Static enums:TransitionType.Dissolve}" />
+                                <ComboBoxItem Content="Thu phóng (Zoom)" Tag="{x:Static enums:TransitionType.Zoom}" />
+                                <ComboBoxItem Content="Mờ dần (Fade)" Tag="{x:Static enums:TransitionType.Fade}" />
+                                <ComboBoxItem Content="Trượt (Slide)" Tag="{x:Static enums:TransitionType.Slide}" />
+                                <ComboBoxItem Content="Quét (Wipe)" Tag="{x:Static enums:TransitionType.Wipe}" />
+                                <ComboBoxItem Content="Chỉ cắt (Cut)" Tag="{x:Static enums:TransitionType.Cut}" />
+                                <ComboBoxItem Content="Không dùng (None)" Tag="{x:Static enums:TransitionType.None}" />
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="Thời lượng hiệu ứng (s):" Foreground="#a1a1aa" Margin="0,0,0,4" ToolTip="Thời lượng chuyển cảnh (mặc định 0.20s)" />
+                            <TextBox Text="{Binding TransitionDurationSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="6">
+                            <TextBlock Text="Khoảng cách tối thiểu (s):" Foreground="#a1a1aa" Margin="0,0,0,4" ToolTip="Khoảng cách tối thiểu giữa 2 lần chuyển cảnh" />
+                            <TextBox Text="{Binding MinTransitionSpacingSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Separator Background="#27272a" Margin="0,0,0,16" />
+
                     <!-- Audio Settings -->
                     <TextBlock Text="Cấu hình Âm thanh &amp; Khoảng lặng" FontSize="14" FontWeight="Bold" Foreground="#10b981" Margin="0,0,0,12" />
                     <Grid Margin="0,0,0,16">

@@ -39,6 +39,13 @@ public class ExportPreset
     public int PaddingBeforeMs { get; set; } = 80;
     public int PaddingAfterMs { get; set; } = 80;
 
+    // Transitions Configuration (Chuyển cảnh)
+    public bool EnableTransitions { get; set; } = true;
+    public int TransitionCount { get; set; } = 2; // Số lượng chuyển cảnh mặc định
+    public TransitionType TransitionType { get; set; } = TransitionType.Smart; // Kiểu chuyển cảnh
+    public double TransitionDurationSeconds { get; set; } = 0.20; // Thời lượng chuyển cảnh (giây)
+    public double MinTransitionSpacingSeconds { get; set; } = 2.0; // Khoảng cách tối thiểu giữa 2 chuyển cảnh (giây)
+
     // Performance & Hardware
     public HardwareEncoderType HardwareEncoder { get; set; } = HardwareEncoderType.Auto;
     public bool EnableSmartSceneCut { get; set; } = true;
@@ -227,6 +234,11 @@ public class ExportPreset
             MinSilenceDurationMs = MinSilenceDurationMs,
             PaddingBeforeMs = PaddingBeforeMs,
             PaddingAfterMs = PaddingAfterMs,
+            EnableTransitions = EnableTransitions,
+            TransitionCount = TransitionCount,
+            TransitionType = TransitionType,
+            TransitionDurationSeconds = TransitionDurationSeconds,
+            MinTransitionSpacingSeconds = MinTransitionSpacingSeconds,
             HardwareEncoder = HardwareEncoder,
             EnableSmartSceneCut = EnableSmartSceneCut,
             CreatedAt = DateTime.UtcNow
