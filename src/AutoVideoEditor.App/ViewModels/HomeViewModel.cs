@@ -36,6 +36,9 @@ public partial class MatchedPairItem : ObservableObject
     public bool HasVoice => !string.IsNullOrEmpty(VoicePath) && File.Exists(VoicePath);
 
     [ObservableProperty]
+    private string _customOutputName = string.Empty;
+
+    [ObservableProperty]
     private double _videoTrimStart;
 
     [ObservableProperty]
@@ -82,6 +85,9 @@ public partial class HomeViewModel : ObservableObject
     private MatchedPairItem? _selectedPair;
 
     [ObservableProperty]
+    private string _baseOutputName = string.Empty;
+
+    [ObservableProperty]
     private FileMappingMode _mappingMode = FileMappingMode.ByName;
 
     [ObservableProperty]
@@ -121,6 +127,32 @@ public partial class HomeViewModel : ObservableObject
 
         var settings = await _settingsService.LoadSettingsAsync();
         OutputDirectory = settings.OutputDirectory;
+    }
+
+    partial void OnBaseOutputNameChanged(string value)
+    {
+        ApplyBaseOutputNameToPairs(value);
+    }
+
+    private void ApplyBaseOutputNameToPairs(string? baseName)
+    {
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            for (int i = 0; i < MatchedPairs.Count; i++)
+            {
+                var p = MatchedPairs[i];
+                p.CustomOutputName = string.Empty;
+            }
+        }
+        else
+        {
+            var cleanBase = baseName.Trim();
+            for (int i = 0; i < MatchedPairs.Count; i++)
+            {
+                var p = MatchedPairs[i];
+                p.CustomOutputName = $"{cleanBase} {p.Index}";
+            }
+        }
     }
 
     partial void OnSelectedPresetChanged(ExportPreset? value)
@@ -334,7 +366,8 @@ public partial class HomeViewModel : ObservableObject
                 VideoTrimEndSeconds = pair.VideoTrimEnd,
                 VoiceTrimStartSeconds = pair.VoiceTrimStart,
                 VoiceTrimEndSeconds = pair.VoiceTrimEnd,
-                ExtraEndPaddingSeconds = pair.ExtraEndPadding
+                ExtraEndPaddingSeconds = pair.ExtraEndPadding,
+                CustomOutputName = !string.IsNullOrWhiteSpace(pair.CustomOutputName) ? pair.CustomOutputName.Trim() : null
             };
             jobs.Add(job);
         }
@@ -435,11 +468,14 @@ public partial class HomeViewModel : ObservableObject
                     usedVoices.Add(matchedVoice);
                 }
 
+                var customName = !string.IsNullOrWhiteSpace(BaseOutputName) ? $"{BaseOutputName.Trim()} {idx}" : string.Empty;
+
                 pairs.Add(new MatchedPairItem
                 {
                     Index = idx++,
                     VideoPaths = new List<string> { video },
                     VoicePath = voiceToAssign,
+                    CustomOutputName = customName,
                     VideoTrimStart = defaultVTrimStart,
                     VideoTrimEnd = defaultVTrimEnd,
                     VoiceTrimStart = defaultVoiceTrimStart,
@@ -454,12 +490,14 @@ public partial class HomeViewModel : ObservableObject
             {
                 var vPath = ImportedVideoPaths[i];
                 var voiceToAssign = i < ImportedVoicePaths.Count ? ImportedVoicePaths[i] : "";
+                var customName = !string.IsNullOrWhiteSpace(BaseOutputName) ? $"{BaseOutputName.Trim()} {idx}" : string.Empty;
 
                 pairs.Add(new MatchedPairItem
                 {
                     Index = idx++,
                     VideoPaths = new List<string> { vPath },
                     VoicePath = voiceToAssign,
+                    CustomOutputName = customName,
                     VideoTrimStart = defaultVTrimStart,
                     VideoTrimEnd = defaultVTrimEnd,
                     VoiceTrimStart = defaultVoiceTrimStart,
@@ -478,6 +516,10 @@ public partial class HomeViewModel : ObservableObject
         for (int i = 0; i < MatchedPairs.Count; i++)
         {
             MatchedPairs[i].Index = i + 1;
+            if (!string.IsNullOrWhiteSpace(BaseOutputName))
+            {
+                MatchedPairs[i].CustomOutputName = $"{BaseOutputName.Trim()} {i + 1}";
+            }
         }
     }
 

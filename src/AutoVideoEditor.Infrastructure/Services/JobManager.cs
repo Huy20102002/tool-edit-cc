@@ -422,15 +422,25 @@ public class JobManager : IJobManager
             var outputDir = _settingsService.CurrentSettings.OutputDirectory;
             Directory.CreateDirectory(outputDir);
 
-            var baseOutputName = Path.GetFileNameWithoutExtension(job.VideoPaths[0]);
-            var voiceName = Path.GetFileNameWithoutExtension(job.VoicePath);
-            var pattern = _settingsService.CurrentSettings.OutputNamingPattern ?? "{original_name}_edited";
+            string formattedName;
+            if (!string.IsNullOrWhiteSpace(job.CustomOutputName))
+            {
+                var rawName = job.CustomOutputName.Trim();
+                var invalidChars = Path.GetInvalidFileNameChars();
+                formattedName = new string(rawName.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray());
+            }
+            else
+            {
+                var baseOutputName = Path.GetFileNameWithoutExtension(job.VideoPaths[0]);
+                var voiceName = Path.GetFileNameWithoutExtension(job.VoicePath);
+                var pattern = _settingsService.CurrentSettings.OutputNamingPattern ?? "{original_name}_edited";
 
-            var formattedName = pattern
-                .Replace("{original_name}", baseOutputName)
-                .Replace("{voice_name}", voiceName)
-                .Replace("{index}", job.OrderIndex.ToString("D3"))
-                .Replace("{date}", DateTime.Now.ToString("yyyyMMdd"));
+                formattedName = pattern
+                    .Replace("{original_name}", baseOutputName)
+                    .Replace("{voice_name}", voiceName)
+                    .Replace("{index}", job.OrderIndex.ToString("D3"))
+                    .Replace("{date}", DateTime.Now.ToString("yyyyMMdd"));
+            }
 
             var finalOutputPath = Path.Combine(outputDir, $"{formattedName}.mp4");
 

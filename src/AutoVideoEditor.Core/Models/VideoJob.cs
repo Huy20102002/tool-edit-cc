@@ -17,6 +17,7 @@ public class VideoJob
     public double VoiceTrimStartSeconds { get; set; }
     public double VoiceTrimEndSeconds { get; set; }
     public double ExtraEndPaddingSeconds { get; set; } // Dư cuối video (giây)
+    public string? CustomOutputName { get; set; } // Tên file xuất tùy chỉnh
 
     // Primary Display Names
     public string VideoFileName => VideoPaths.Count == 1 
@@ -31,7 +32,9 @@ public class VideoJob
 
     public string OutputFileName => !string.IsNullOrEmpty(OutputPath) 
         ? Path.GetFileName(OutputPath) 
-        : "(Chưa tạo)";
+        : !string.IsNullOrWhiteSpace(CustomOutputName)
+            ? $"{CustomOutputName}.mp4"
+            : "(Chưa tạo)";
 
     // Execution state
     public JobStatus Status { get; set; } = JobStatus.Pending;
