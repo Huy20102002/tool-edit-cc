@@ -31,7 +31,10 @@ public class FilterGraphBuilder
         // 1. Hardware acceleration decoding flag if available
         bool isGpu = encoderName.Contains("nvenc") || encoderName.Contains("qsv") || encoderName.Contains("amf") || encoderName.Contains("mf");
 
-        // 2. Input flags and files
+        // 2. Global thread throttling to ensure low CPU usage and zero fan noise
+        sbArgs.Append("-threads 2 ");
+
+        // 3. Input flags and files
         if (videoInputs.Count == 1 && timelinePlan.RequiresVideoLooping)
         {
             var loopCount = Math.Max(1, timelinePlan.TotalVideoLoops + 2);
@@ -41,12 +44,12 @@ public class FilterGraphBuilder
         // Add Video Inputs
         for (int i = 0; i < videoInputs.Count; i++)
         {
-            sbArgs.Append($"-i \"{videoInputs[i]}\" ");
+            sbArgs.Append($"-threads 2 -i \"{videoInputs[i]}\" ");
         }
 
         // Add Voice Audio Input
         var voiceInputIndex = videoInputs.Count;
-        sbArgs.Append($"-i \"{voicePath}\" ");
+        sbArgs.Append($"-threads 2 -i \"{voicePath}\" ");
 
         // 3. Build Video Filter Graph (CapCut Optimized Ultra-Fast Background Blur + Transitions + 4K to FullHD Auto Scale)
         string finalVideoLabel;
@@ -201,28 +204,28 @@ public class FilterGraphBuilder
         if (encoderName.Contains("nvenc"))
         {
             var bitrate = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
-            sbArgs.Append($"-preset p4 -tune ll -b:v {bitrate}k -maxrate:v {bitrate * 1.3:F0}k -bufsize:v {bitrate * 2}k -pix_fmt yuv420p ");
+            sbArgs.Append($"-threads 2 -preset p4 -tune ll -b:v {bitrate}k -maxrate:v {bitrate * 1.3:F0}k -bufsize:v {bitrate * 2}k -pix_fmt yuv420p ");
         }
         else if (encoderName.Contains("mf"))
         {
             var br = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
-            sbArgs.Append($"-b:v {br}k -pix_fmt yuv420p ");
+            sbArgs.Append($"-threads 2 -b:v {br}k -pix_fmt yuv420p ");
         }
         else if (encoderName.Contains("qsv"))
         {
             var br = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
-            sbArgs.Append($"-preset medium -b:v {br}k -global_quality 20 -pix_fmt nv12 ");
+            sbArgs.Append($"-threads 2 -preset medium -b:v {br}k -global_quality 20 -pix_fmt nv12 ");
         }
         else if (encoderName.Contains("amf"))
         {
             var br = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
-            sbArgs.Append($"-quality speed -rc cbr -b:v {br}k -pix_fmt yuv420p ");
+            sbArgs.Append($"-threads 2 -quality speed -rc cbr -b:v {br}k -pix_fmt yuv420p ");
         }
         else
         {
             // libx264 (CPU - Fast & lightweight, restricted threads to prevent freezing)
             var bitrate = preset.CustomVideoBitrateKbps > 0 ? preset.CustomVideoBitrateKbps : 15000;
-            sbArgs.Append($"-preset superfast -b:v {bitrate}k -threads 3 -pix_fmt yuv420p ");
+            sbArgs.Append($"-preset superfast -b:v {bitrate}k -threads 2 -pix_fmt yuv420p ");
         }
 
         // Audio encoder settings (AAC 192k stereo)
