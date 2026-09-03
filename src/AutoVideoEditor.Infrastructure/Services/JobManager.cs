@@ -319,35 +319,32 @@ public class JobManager : IJobManager
 
         try
         {
-            _logService.LogInfo($"Bắt đầu xử lý...", jId, tag);
-            _logService.LogInfo($"Video: {job.VideoFileName}", jId, tag);
-            _logService.LogInfo($"Giọng đọc: {job.VoiceFileName}", jId, tag);
+            _logService.LogInfo($"[CHẾ ĐỘ] OneShot Video TikTok", jId, tag);
+            _logService.LogInfo($"Video gốc: {job.VideoFileName}", jId, tag);
+            _logService.LogInfo($"Audio/Voice: {job.VoiceFileName}", jId, tag);
 
             // 1. Validate files
-            if (job.VideoPaths.Count == 0 || !job.VideoPaths.All(File.Exists))
+            var videoFile = !string.IsNullOrEmpty(job.VideoPath) ? job.VideoPath : (job.VideoPaths.Count > 0 ? job.VideoPaths[0] : "");
+            if (string.IsNullOrEmpty(videoFile) || !File.Exists(videoFile))
             {
-                throw new FileNotFoundException("Một hoặc nhiều file video đầu vào không tồn tại.");
+                throw new FileNotFoundException($"File video đầu vào không tồn tại: {videoFile}");
             }
             if (string.IsNullOrEmpty(job.VoicePath) || !File.Exists(job.VoicePath))
             {
-                throw new FileNotFoundException("File giọng đọc không tồn tại.");
+                throw new FileNotFoundException($"File âm thanh/giọng đọc không tồn tại: {job.VoicePath}");
             }
 
             // 2. Video Analysis (FFprobe)
             UpdateJobState(job, JobStatus.AnalyzingVideo, "Đang phân tích video...", 5);
-            _logService.LogInfo("Đang kiểm tra thông tin video qua FFprobe...", jId, tag);
+            _logService.LogInfo("Đang kiểm tra thông tin video OneShot qua FFprobe...", jId, tag);
             job.VideoMetadatas.Clear();
-            foreach (var vPath in job.VideoPaths)
-            {
-                var vInfo = await _probeService.ProbeFileAsync(vPath, ct).ConfigureAwait(false);
-                job.VideoMetadatas.Add(vInfo);
-                _logService.LogInfo($"Video Info: {vInfo.Width}x{vInfo.Height}, {vInfo.Fps:F0} FPS, Thời lượng: {vInfo.DurationSeconds:F2}s, Codec: {vInfo.VideoCodec}", jId, tag);
-            }
+            var vInfo = await _probeService.ProbeFileAsync(videoFile, ct).ConfigureAwait(false);
+            job.VideoMetadatas.Add(vInfo);
+            _logService.LogInfo($"Video: {vInfo.Width}x{vInfo.Height}, {vInfo.Fps:F0} FPS, Thời lượng: {vInfo.DurationSeconds:F2}s, Codec: {vInfo.VideoCodec}", jId, tag);
 
-            // 3. Voice Analysis (Silence detection)
-            UpdateJobState(job, JobStatus.AnalyzingVoice, "Đang phân tích giọng đọc...", 15);
-            _logService.LogInfo("Đang phân tích giọng đọc & phát hiện khoảng lặng...", jId, tag);
-            _logService.LogInfo($"Ngưỡng silence: {job.Preset.SilenceThresholdDb:F0} dB | Tối thiểu: {job.Preset.MinSilenceDurationMs} ms | Đệm: {job.Preset.PaddingBeforeMs} ms", jId, tag);
+            // 3. Voice Analysis (Silence detection & Master Timeline)
+            UpdateJobState(job, JobStatus.AnalyzingVoice, "Đang phân tích âm thanh...", 15);
+            _logService.LogInfo("Đang phân tích audio/voice & cắt khoảng lặng...", jId, tag);
 
             job.VoiceAnalysis = await _audioAnalyzer.AnalyzeVoiceAsync(
                 job.VoicePath,
@@ -383,35 +380,40 @@ public class JobManager : IJobManager
                     job.VoiceAnalysis.SpeechSegments = filteredSegments;
                     job.VoiceAnalysis.ProcessedDurationSeconds = filteredSegments.Sum(s => s.DurationSeconds);
                 }
-                _logService.LogInfo($"Đã áp dụng cắt giọng đọc: -{vTrimStart:F1}s đầu, -{vTrimEnd:F1}s cuối.", jId, tag);
+                _logService.LogInfo($"Cắt âm thanh: -{vTrimStart:F1}s đầu, -{vTrimEnd:F1}s cuối.", jId, tag);
             }
 
-            _logService.LogInfo($"Thời lượng voice gốc: {job.VoiceAnalysis.OriginalDurationSeconds:F2}s", jId, tag);
-            _logService.LogInfo($"Phát hiện: {job.VoiceAnalysis.SilenceSegments.Count} đoạn khoảng lặng. Tổng đã cắt: {job.VoiceAnalysis.SilenceDurationRemovedSeconds:F2}s ({job.VoiceAnalysis.SilenceRemovalPercentage:F1}%)", jId, tag);
-            _logService.LogSuccess($"Thời lượng voice sau xử lý: {job.VoiceAnalysis.ProcessedDurationSeconds:F2}s", jId, tag);
+            _logService.LogInfo($"Thời lượng audio gốc: {job.VoiceAnalysis.OriginalDurationSeconds:F2}s", jId, tag);
+            _logService.LogInfo($"Cắt khoảng lặng: Đã cắt {job.VoiceAnalysis.SilenceDurationRemovedSeconds:F2}s ({job.VoiceAnalysis.SilenceRemovalPercentage:F1}%)", jId, tag);
+            _logService.LogSuccess($"Thời lượng Master Timeline: {job.VoiceAnalysis.ProcessedDurationSeconds:F2}s", jId, tag);
+
             if (extraEnd > 0)
             {
-                _logService.LogInfo($"Thêm dư cuối video (Outro hold): +{extraEnd:F1}s | Tổng thời lượng video: {(job.VoiceAnalysis.ProcessedDurationSeconds + extraEnd):F2}s", jId, tag);
+                _logService.LogInfo($"Dư cuối video: +{extraEnd:F1}s | Tổng thời lượng: {(job.VoiceAnalysis.ProcessedDurationSeconds + extraEnd):F2}s", jId, tag);
             }
 
-            // 4. Scene Detection & Timeline Plan
-            UpdateJobState(job, JobStatus.BuildingTimeline, "Đang xây dựng timeline...", 25);
-            _logService.LogInfo("Đang xây dựng timeline video theo thời lượng voice...", jId, tag);
-            if (vidTrimStart > 0 || vidTrimEnd > 0)
-            {
-                _logService.LogInfo($"Cắt bỏ video riêng cho job: -{vidTrimStart:F1}s đầu, -{vidTrimEnd:F1}s cuối.", jId, tag);
-            }
+            // 4. OneShot Timeline & Smart Jump Cut Planning
+            UpdateJobState(job, JobStatus.BuildingTimeline, "Đang xây dựng timeline OneShot...", 25);
+            _logService.LogInfo("Đang xây dựng timeline OneShot (Smart Cut & Jump Cut)...", jId, tag);
 
-            // Detect natural scenes if available
-            if (job.VideoPaths.Count == 1 && job.Preset.EnableSmartSceneCut && _sceneDetector != null)
+            // Dò các điểm chuyển động / thay đổi khung hình để chọn điểm cắt
+            if (job.Preset.EnableSmartSceneCut && _sceneDetector != null)
             {
                 try
                 {
-                    job.DetectedScenes = await _sceneDetector.DetectScenesAsync(job.VideoPaths[0], 0.3, ct).ConfigureAwait(false);
+                    job.DetectedScenes = await _sceneDetector.DetectScenesAsync(videoFile, 0.3, ct).ConfigureAwait(false);
+                    if (job.DetectedScenes.Count > 1)
+                    {
+                        _logService.LogInfo($"Phát hiện {job.DetectedScenes.Count} điểm cắt chuyển động tự nhiên.", jId, tag);
+                    }
+                    else
+                    {
+                        _logService.LogInfo("Video OneShot liền mạch. Tự động chia nhịp Smart Cut thẩm mỹ.", jId, tag);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex, "Scene detection failed, using rhythmic dynamic scenes.");
+                    _logger?.LogWarning(ex, "Scene detection failed, using rhythmic smart cut.");
                 }
             }
 
@@ -430,39 +432,27 @@ public class JobManager : IJobManager
                 job.DetectedScenes);
 
             job.PlannedTransitions = job.TimelinePlan.Transitions;
+            job.OneShotClips = job.TimelinePlan.OneShotClips;
 
-            // Log scenes and transitions in requested user format
-            int totalScenes = job.TimelinePlan.Scenes.Count;
-            int validCutPoints = Math.Max(0, totalScenes - 1);
-            _logService.LogInfo($"Tổng số scene: {totalScenes}", jId, tag);
-            _logService.LogInfo($"Điểm chuyển cảnh hợp lệ: {validCutPoints}", jId, tag);
-            _logService.LogInfo($"Người dùng yêu cầu: {reqTransCount} transition ({reqTransType})", jId, tag);
-
-            if (reqTransCount > validCutPoints && validCutPoints > 0)
-            {
-                _logService.LogWarning($"Video chỉ có {validCutPoints} điểm chuyển cảnh hợp lệ.", jId, tag);
-                _logService.LogWarning($"Số lượng yêu cầu: {reqTransCount}.", jId, tag);
-                _logService.LogInfo($"Tự động giảm xuống: {job.TimelinePlan.ActiveTransitionsCount}.", jId, tag);
-            }
+            _logService.LogInfo($"Số đoạn nhịp (Clips) sử dụng: {job.TimelinePlan.OneShotClips.Count}", jId, tag);
+            _logService.LogInfo($"Transition yêu cầu: {reqTransCount} ({reqTransType}) | Transition thực tế: {job.TimelinePlan.ActiveTransitionsCount}", jId, tag);
 
             if (job.TimelinePlan.ActiveTransitionsCount > 0)
             {
-                _logService.LogInfo("Đang phân bố transition...", jId, tag);
                 int tIndex = 1;
                 foreach (var trans in job.TimelinePlan.Transitions.Where(t => t.IsActiveTransition))
                 {
-                    _logService.LogInfo($"Transition #{tIndex++}: Scene {trans.FromSceneIndex:D2} → Scene {trans.ToSceneIndex:D2} | Type: {trans.TransitionType} | Duration: {trans.DurationSeconds:F2}s", jId, tag);
+                    _logService.LogInfo($"Transition #{tIndex++}: Đoạn {trans.FromSceneIndex:D2} → Đoạn {trans.ToSceneIndex:D2} | Kiểu: {trans.TransitionType} ({trans.DurationSeconds:F2}s)", jId, tag);
                 }
             }
-            _logService.LogInfo($"Tổng transition thực tế: {job.TimelinePlan.ActiveTransitionsCount}", jId, tag);
 
-            if (job.TimelinePlan.RequiresVideoTrimming)
+            if (job.TimelinePlan.RequiresVideoLooping)
             {
-                _logService.LogInfo($"Video dài hơn voice. Đang cắt video xuống đúng {job.TimelinePlan.TargetMasterDurationSeconds:F2}s", jId, tag);
+                _logService.LogInfo($"Video ngắn hơn audio. Tự động lặp lại video ({job.TimelinePlan.TotalVideoLoops} vòng lặp)", jId, tag);
             }
-            else if (job.TimelinePlan.RequiresVideoLooping)
+            else
             {
-                _logService.LogInfo($"Video ngắn hơn voice ({job.VideoMetadatas[0].DurationSeconds:F2}s < {job.TimelinePlan.TargetMasterDurationSeconds:F2}s). Tự động lặp lại video ({job.TimelinePlan.TotalVideoLoops} vòng lặp)", jId, tag);
+                _logService.LogInfo($"Video dài hơn audio. Smart Cut đã chọn lọc {job.TimelinePlan.OneShotClips.Count} đoạn trải đều toàn video.", jId, tag);
             }
 
             var cropModeDesc = job.Preset.CropMode switch

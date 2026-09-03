@@ -2,6 +2,24 @@ using AutoVideoEditor.Core.Enums;
 
 namespace AutoVideoEditor.Core.Models;
 
+public class OneShotClipSegment
+{
+    public int Index { get; set; }
+    public double SourceStartSeconds { get; set; }
+    public double SourceEndSeconds { get; set; }
+    public double DurationSeconds => Math.Max(0, SourceEndSeconds - SourceStartSeconds);
+    public string Description => $"Đoạn {Index:D2}: {SourceStartSeconds:F2}s → {SourceEndSeconds:F2}s ({DurationSeconds:F2}s)";
+
+    public OneShotClipSegment() { }
+
+    public OneShotClipSegment(int index, double start, double end)
+    {
+        Index = index;
+        SourceStartSeconds = start;
+        SourceEndSeconds = end;
+    }
+}
+
 public class TransitionPlanItem
 {
     public int PointIndex { get; set; }
@@ -13,8 +31,8 @@ public class TransitionPlanItem
     public bool IsActiveTransition { get; set; }
     public double CandidateScore { get; set; }
     public string Description => IsActiveTransition 
-        ? $"Scene {FromSceneIndex:D2} → Scene {ToSceneIndex:D2} | {TransitionType} ({DurationSeconds:F2}s) [Score: {CandidateScore:F0}]"
-        : $"Scene {FromSceneIndex:D2} → Scene {ToSceneIndex:D2} | CUT";
+        ? $"Đoạn {FromSceneIndex:D2} → Đoạn {ToSceneIndex:D2} | {TransitionType} ({DurationSeconds:F2}s)"
+        : $"Đoạn {FromSceneIndex:D2} → Đoạn {ToSceneIndex:D2} | CUT (Jump Cut)";
 }
 
 public class TransitionCandidateScore

@@ -151,6 +151,12 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- OneShot Checkboxes -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,16,4">
+                                    <CheckBox IsChecked="{Binding EnableSilenceRemoval}" Content="Cắt khoảng lặng" Foreground="#34d399" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Tự động phát hiện và cắt bỏ các đoạn ngập ngừng / khoảng lặng trong giọng đọc" />
+                                    <CheckBox IsChecked="{Binding EnableSmartCut}" Content="Tự động cắt nhịp" Foreground="#38bdf8" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Tự động phân đoạn và tạo các điểm Jump Cut thẩm mỹ trên video OneShot" />
+                                </StackPanel>
+
                                 <!-- Group 1: Trimming -->
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,16,4" DataContext="{Binding SelectedPreset}">
                                     <TextBlock Text="✂️" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
@@ -161,17 +167,7 @@
                                     <TextBlock Text="s" Foreground="#71717a" VerticalAlignment="Center" Margin="2,0,0,0" />
                                 </StackPanel>
 
-                                <!-- Group 2: Voice Trimming -->
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,16,4" DataContext="{Binding SelectedPreset}">
-                                    <TextBlock Text="🎙️" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                    <TextBlock Text="Cắt Voice:" Foreground="#a1a1aa" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" />
-                                    <TextBox Text="{Binding VoiceTrimStartSeconds, UpdateSourceTrigger=PropertyChanged}" Width="45" Height="26" Padding="2,1" ToolTip="Cắt đầu voice (s)" HorizontalContentAlignment="Center" />
-                                    <TextBlock Text=" / " Foreground="#71717a" VerticalAlignment="Center" Margin="2,0" />
-                                    <TextBox Text="{Binding VoiceTrimEndSeconds, UpdateSourceTrigger=PropertyChanged}" Width="45" Height="26" Padding="2,1" ToolTip="Cắt đuôi voice (s)" HorizontalContentAlignment="Center" />
-                                    <TextBlock Text="s" Foreground="#71717a" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-
-                                <!-- Group 3: Outro Padding -->
+                                <!-- Group 2: Outro Padding -->
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,16,4" DataContext="{Binding SelectedPreset}">
                                     <TextBlock Text="⏱️" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
                                     <TextBlock Text="Dư cuối:" Foreground="#fbbf24" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" />
@@ -179,10 +175,10 @@
                                     <TextBlock Text="s" Foreground="#fbbf24" VerticalAlignment="Center" Margin="2,0,0,0" />
                                 </StackPanel>
 
-                                <!-- Group 4: Transition Stepper & Type -->
+                                <!-- Group 3: Transition Stepper & Type -->
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,8,4">
                                     <TextBlock Text="✨" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                    <TextBlock Text="Chuyển Cảnh Mặc Định:" Foreground="#06b6d4" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12" />
+                                    <TextBlock Text="Chuyển Cảnh:" Foreground="#06b6d4" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12" />
                                     
                                     <!-- Stepper [ - ] [ 2 ] [ + ] -->
                                     <Border Background="#18181b" BorderBrush="#3f3f46" BorderThickness="1" CornerRadius="6" Height="30" Padding="2" VerticalAlignment="Center" Margin="0,0,8,0">

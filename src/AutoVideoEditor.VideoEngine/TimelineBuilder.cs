@@ -58,95 +58,166 @@ public class TimelineBuilder : ITimelineBuilder
         var trimStart = Math.Max(0.0, customTrimStart ?? preset.VideoTrimStartSeconds);
         var trimEnd = Math.Max(0.0, customTrimEnd ?? preset.VideoTrimEndSeconds);
 
-        double currentTimelinePos = 0.0;
-        int loopCounter = 0;
+        var oneShotClips = new List<OneShotClipSegment>();
+        var sceneList = new List<SceneSegment>();
 
-        // Loop until target master duration is completely covered
-        while (currentTimelinePos < targetDuration)
+        if (validVideos.Count == 1)
         {
-            foreach (var video in validVideos)
+            var video = validVideos[0];
+            var rawVideoDuration = video.DurationSeconds > 0 ? video.DurationSeconds : targetDuration;
+            var effectiveSourceDuration = Math.Max(1.0, rawVideoDuration - trimStart - trimEnd);
+
+            // 1. OneShot Smart Cut Algorithm (Tạo nhịp Jump Cut từ 1 Video duy nhất)
+            if (preset.EnableSmartCut && effectiveSourceDuration > (targetDuration + 1.5))
             {
-                if (currentTimelinePos >= targetDuration)
-                    break;
+                // Video is longer than audio: Extract K rhythmic jump-cut segments across the entire video
+                int k = Math.Clamp((int)Math.Round(targetDuration / 3.8), 3, 14);
+                double clipDur = targetDuration / k;
+                double step = (effectiveSourceDuration - clipDur) / (k - 1);
 
-                var remainingDurationNeeded = targetDuration - currentTimelinePos;
-                var rawSourceDuration = video.DurationSeconds > 0 ? video.DurationSeconds : remainingDurationNeeded;
-                var effectiveSourceDuration = Math.Max(0.2, rawSourceDuration - trimStart - trimEnd);
+                double currentTimelinePos = 0.0;
+                for (int i = 0; i < k; i++)
+                {
+                    double srcStart = trimStart + (i * step);
+                    double srcEnd = srcStart + clipDur;
 
-                var sliceDuration = Math.Min(effectiveSourceDuration, remainingDurationNeeded);
+                    // Snap to nearest detected scene boundary if available (within 1.0s)
+                    if (detectedScenes != null && detectedScenes.Count > 0)
+                    {
+                        var nearestCut = detectedScenes
+                            .Select(s => s.StartSeconds)
+                            .Where(pt => Math.Abs(pt - srcStart) <= 1.0 && pt >= trimStart && (pt + clipDur) <= (rawVideoDuration - trimEnd + 0.1))
+                            .OrderBy(pt => Math.Abs(pt - srcStart))
+                            .FirstOrDefault();
 
-                var slice = new VideoTimelineSlice
+                        if (nearestCut > 0.05)
+                        {
+                            srcStart = nearestCut;
+                            srcEnd = srcStart + clipDur;
+                        }
+                    }
+
+                    var clip = new OneShotClipSegment(i + 1, srcStart, srcEnd);
+                    oneShotClips.Add(clip);
+
+                    plan.VideoSlices.Add(new VideoTimelineSlice
+                    {
+                        VideoFilePath = video.FilePath,
+                        SourceStartSeconds = srcStart,
+                        SourceDurationSeconds = clipDur,
+                        TimelineStartSeconds = currentTimelinePos,
+                        LoopIndex = 0
+                    });
+
+                    sceneList.Add(new SceneSegment(i + 1, currentTimelinePos, currentTimelinePos + clipDur));
+                    currentTimelinePos += clipDur;
+                }
+
+                plan.RequiresVideoLooping = false;
+                plan.RequiresVideoTrimming = true;
+                plan.TotalVideoLoops = 0;
+            }
+            else if (effectiveSourceDuration < targetDuration)
+            {
+                // Video is shorter than audio: Loop single video cleanly to fill the timeline
+                double currentTimelinePos = 0.0;
+                int loopCounter = 0;
+                int sIdx = 1;
+
+                while (currentTimelinePos < targetDuration)
+                {
+                    var remaining = targetDuration - currentTimelinePos;
+                    var sliceDur = Math.Min(effectiveSourceDuration, remaining);
+
+                    var clip = new OneShotClipSegment(sIdx, trimStart, trimStart + sliceDur);
+                    oneShotClips.Add(clip);
+
+                    plan.VideoSlices.Add(new VideoTimelineSlice
+                    {
+                        VideoFilePath = video.FilePath,
+                        SourceStartSeconds = trimStart,
+                        SourceDurationSeconds = sliceDur,
+                        TimelineStartSeconds = currentTimelinePos,
+                        LoopIndex = loopCounter
+                    });
+
+                    sceneList.Add(new SceneSegment(sIdx++, currentTimelinePos, currentTimelinePos + sliceDur));
+                    currentTimelinePos += sliceDur;
+                    loopCounter++;
+                }
+
+                plan.RequiresVideoLooping = true;
+                plan.RequiresVideoTrimming = false;
+                plan.TotalVideoLoops = loopCounter;
+            }
+            else
+            {
+                // Video is roughly equal to audio or SmartCut is off: Single continuous slice
+                var clip = new OneShotClipSegment(1, trimStart, trimStart + targetDuration);
+                oneShotClips.Add(clip);
+
+                plan.VideoSlices.Add(new VideoTimelineSlice
                 {
                     VideoFilePath = video.FilePath,
                     SourceStartSeconds = trimStart,
-                    SourceDurationSeconds = sliceDuration,
-                    TimelineStartSeconds = currentTimelinePos,
-                    LoopIndex = loopCounter
-                };
+                    SourceDurationSeconds = targetDuration,
+                    TimelineStartSeconds = 0.0,
+                    LoopIndex = 0
+                });
 
-                plan.VideoSlices.Add(slice);
-                currentTimelinePos += sliceDuration;
-            }
+                // Subdivide into aesthetic rhythmic sub-scenes (3.5s - 4.5s each) for transition placement
+                double idealSceneDur = 4.0;
+                int estimatedScenes = Math.Max(2, (int)Math.Round(targetDuration / idealSceneDur));
+                double actualSceneDur = targetDuration / estimatedScenes;
 
-            loopCounter++;
-        }
-
-        var firstEffective = Math.Max(0.2, (validVideos[0].DurationSeconds > 0 ? validVideos[0].DurationSeconds : targetDuration) - trimStart - trimEnd);
-        plan.RequiresVideoLooping = loopCounter > 1 || (validVideos.Count == 1 && firstEffective < targetDuration);
-        plan.RequiresVideoTrimming = validVideos.Count == 1 && firstEffective > targetDuration;
-        plan.TotalVideoLoops = loopCounter;
-
-        // 2. Build Scene Segments for Transition Planning
-        var sceneList = new List<SceneSegment>();
-        if (detectedScenes != null && detectedScenes.Count > 1)
-        {
-            // Use detected scenes mapped to timeline duration
-            double sPos = 0.0;
-            int sIdx = 1;
-            foreach (var ds in detectedScenes)
-            {
-                if (sPos >= targetDuration) break;
-                var sDur = Math.Min(ds.DurationSeconds, targetDuration - sPos);
-                if (sDur > 0.1)
+                double sPos = 0.0;
+                for (int i = 0; i < estimatedScenes; i++)
                 {
-                    sceneList.Add(new SceneSegment(sIdx++, sPos, sPos + sDur));
-                    sPos += sDur;
+                    double sEnd = (i == estimatedScenes - 1) ? targetDuration : sPos + actualSceneDur;
+                    sceneList.Add(new SceneSegment(i + 1, sPos, sEnd));
+                    sPos = sEnd;
                 }
-            }
-            if (sPos < targetDuration && sceneList.Count > 0)
-            {
-                // Extend last scene or add remainder
-                var last = sceneList.Last();
-                sceneList[sceneList.Count - 1] = new SceneSegment(last.Index, last.StartSeconds, targetDuration);
-            }
-        }
-        else if (plan.VideoSlices.Count > 1)
-        {
-            for (int i = 0; i < plan.VideoSlices.Count; i++)
-            {
-                var sl = plan.VideoSlices[i];
-                sceneList.Add(new SceneSegment(i + 1, sl.TimelineStartSeconds, sl.TimelineStartSeconds + sl.TimelineDurationSeconds));
+
+                plan.RequiresVideoLooping = false;
+                plan.RequiresVideoTrimming = (rawVideoDuration - trimStart - trimEnd) > targetDuration;
+                plan.TotalVideoLoops = 0;
             }
         }
         else
         {
-            // Single continuous video: Subdivide into aesthetic rhythmic sub-scenes (3s-5s each) based on voice pauses
-            double idealSceneDur = 4.0;
-            int estimatedScenes = Math.Max(2, (int)Math.Round(targetDuration / idealSceneDur));
-            double actualSceneDur = targetDuration / estimatedScenes;
+            // Multi-video fallback
+            double currentTimelinePos = 0.0;
+            int loopCounter = 0;
 
-            double sPos = 0.0;
-            for (int i = 0; i < estimatedScenes; i++)
+            while (currentTimelinePos < targetDuration)
             {
-                double sEnd = (i == estimatedScenes - 1) ? targetDuration : sPos + actualSceneDur;
-                sceneList.Add(new SceneSegment(i + 1, sPos, sEnd));
-                sPos = sEnd;
+                foreach (var video in validVideos)
+                {
+                    if (currentTimelinePos >= targetDuration) break;
+                    var remaining = targetDuration - currentTimelinePos;
+                    var rawDur = video.DurationSeconds > 0 ? video.DurationSeconds : remaining;
+                    var sliceDur = Math.Min(rawDur, remaining);
+
+                    plan.VideoSlices.Add(new VideoTimelineSlice
+                    {
+                        VideoFilePath = video.FilePath,
+                        SourceStartSeconds = 0,
+                        SourceDurationSeconds = sliceDur,
+                        TimelineStartSeconds = currentTimelinePos,
+                        LoopIndex = loopCounter
+                    });
+
+                    sceneList.Add(new SceneSegment(sceneList.Count + 1, currentTimelinePos, currentTimelinePos + sliceDur));
+                    currentTimelinePos += sliceDur;
+                }
+                loopCounter++;
             }
         }
 
+        plan.OneShotClips = oneShotClips;
         plan.Scenes = sceneList;
 
-        // 3. Plan Transitions
+        // 2. Plan Transitions (Only on the requested count, uniformly distributed)
         var reqCount = customTransitionCount ?? preset.TransitionCount;
         var reqType = customTransitionType ?? preset.TransitionType;
         var reqDur = preset.TransitionDurationSeconds > 0 ? preset.TransitionDurationSeconds : 0.20;
@@ -167,8 +238,8 @@ public class TimelineBuilder : ITimelineBuilder
             plan.AudioSpeechSegments
         );
 
-        plan.SummaryText = $"Master Duration: {targetDuration:F2}s (+{extraEnd:F1}s outro) | Slices: {plan.VideoSlices.Count} | Scenes: {plan.Scenes.Count} | Transitions: {plan.ActiveTransitionsCount}/{reqCount} ({reqType}) | Loops: {loopCounter}";
-        _logger?.LogInformation("Built timeline plan: {Summary}", plan.SummaryText);
+        plan.SummaryText = $"OneShot Master: {targetDuration:F2}s | Clips: {plan.OneShotClips.Count} | Transitions: {plan.ActiveTransitionsCount}/{reqCount} ({reqType}) | Loops: {plan.TotalVideoLoops}";
+        _logger?.LogInformation("Built OneShot timeline plan: {Summary}", plan.SummaryText);
 
         return plan;
     }

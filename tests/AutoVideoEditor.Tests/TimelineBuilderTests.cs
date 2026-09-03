@@ -10,7 +10,7 @@ public class TimelineBuilderTests
     private readonly ExportPreset _preset = ExportPreset.GetDefaultPresets()[0];
 
     [Fact]
-    public void BuildTimeline_VideoLongerThanVoice_TrimsVideoToMasterDuration()
+    public void BuildTimeline_OneShot_SmartCut_ExtractsJumpCuts()
     {
         var videos = new List<MediaFileInfo>
         {
@@ -28,13 +28,46 @@ public class TimelineBuilderTests
             }
         };
 
-        var plan = _builder.BuildTimeline(videos, voiceAnalysis, _preset);
+        var customPreset = _preset.Clone();
+        customPreset.EnableSmartCut = true;
+
+        var plan = _builder.BuildTimeline(videos, voiceAnalysis, customPreset);
+
+        Assert.Equal(29.4, plan.TargetMasterDurationSeconds, 2);
+        Assert.True(plan.VideoSlices.Count >= 4);
+        Assert.Equal(29.4, plan.VideoSlices.Sum(s => s.SourceDurationSeconds), 2);
+        Assert.False(plan.RequiresVideoLooping);
+        Assert.True(plan.RequiresVideoTrimming);
+    }
+
+    [Fact]
+    public void BuildTimeline_OneShot_ContinuousTrim_SingleSlice()
+    {
+        var videos = new List<MediaFileInfo>
+        {
+            new MediaFileInfo { FilePath = "C:/media/video45s.mp4", DurationSeconds = 45.0, Width = 1920, Height = 1080 }
+        };
+
+        var voiceAnalysis = new AudioAnalysisResult
+        {
+            OriginalDurationSeconds = 35.8,
+            ProcessedDurationSeconds = 29.4,
+            SpeechSegments = new List<SpeechSegment>
+            {
+                new SpeechSegment(1, 0, 10),
+                new SpeechSegment(2, 12, 31.4)
+            }
+        };
+
+        var customPreset = _preset.Clone();
+        customPreset.EnableSmartCut = false;
+
+        var plan = _builder.BuildTimeline(videos, voiceAnalysis, customPreset);
 
         Assert.Equal(29.4, plan.TargetMasterDurationSeconds, 2);
         Assert.Single(plan.VideoSlices);
         Assert.Equal(29.4, plan.VideoSlices[0].SourceDurationSeconds, 2);
         Assert.False(plan.RequiresVideoLooping);
-        Assert.True(plan.RequiresVideoTrimming);
     }
 
     [Fact]
@@ -138,7 +171,6 @@ public class TimelineBuilderTests
         var plan = _builder.BuildTimeline(videos, voiceAnalysis, _preset, customExtraEnd: 3.0);
 
         Assert.Equal(15.0, plan.TargetMasterDurationSeconds, 2); // 12.0 + 3.0 = 15.0s
-        Assert.Single(plan.VideoSlices);
-        Assert.Equal(15.0, plan.VideoSlices[0].SourceDurationSeconds, 2);
+        Assert.Equal(15.0, plan.VideoSlices.Sum(s => s.SourceDurationSeconds), 2);
     }
 }

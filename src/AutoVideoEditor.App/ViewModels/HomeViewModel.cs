@@ -16,7 +16,11 @@ public partial class MatchedPairItem : ObservableObject
     private int _index;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VideoFileName))]
+    [NotifyPropertyChangedFor(nameof(VideoPath))]
     private List<string> _videoPaths = new();
+
+    public string VideoPath => VideoPaths.Count > 0 ? VideoPaths[0] : string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VoiceFileName))]
@@ -112,6 +116,12 @@ public partial class HomeViewModel : ObservableObject
         new TransitionTypeOption { Type = TransitionType.Cut, DisplayName = "Chỉ cắt" },
         new TransitionTypeOption { Type = TransitionType.None, DisplayName = "Không dùng" }
     };
+
+    [ObservableProperty]
+    private bool _enableSilenceRemoval = true;
+
+    [ObservableProperty]
+    private bool _enableSmartCut = true;
 
     [ObservableProperty]
     private FileMappingMode _mappingMode = FileMappingMode.ByName;
@@ -439,9 +449,12 @@ public partial class HomeViewModel : ObservableObject
             var job = new VideoJob
             {
                 OrderIndex = idx++,
+                VideoPath = pair.VideoPath,
                 VideoPaths = pair.VideoPaths.ToList(),
                 VoicePath = pair.VoicePath,
                 Preset = SelectedPreset.Clone(),
+                EnableSmartCut = EnableSmartCut,
+                EnableSilenceRemoval = EnableSilenceRemoval,
                 VideoTrimStartSeconds = pair.VideoTrimStart,
                 VideoTrimEndSeconds = pair.VideoTrimEnd,
                 VoiceTrimStartSeconds = pair.VoiceTrimStart,
@@ -451,6 +464,7 @@ public partial class HomeViewModel : ObservableObject
                 CustomTransitionCount = pair.TransitionCount,
                 CustomTransitionType = pair.TransitionType
             };
+            job.Preset.EnableSmartCut = EnableSmartCut;
             jobs.Add(job);
         }
 

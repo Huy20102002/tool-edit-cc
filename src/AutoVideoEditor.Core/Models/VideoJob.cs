@@ -29,17 +29,41 @@ public class VideoJob : INotifyPropertyChanged
     private int _orderIndex;
     public int OrderIndex { get => _orderIndex; set => SetProperty(ref _orderIndex, value); }
 
+    // Primary Single Video Source for OneShot
+    private string _videoPath = string.Empty;
+    public string VideoPath
+    {
+        get => _videoPath;
+        set
+        {
+            if (SetProperty(ref _videoPath, value))
+            {
+                if (_videoPaths.Count == 0 || _videoPaths[0] != value)
+                {
+                    _videoPaths = string.IsNullOrEmpty(value) ? new List<string>() : new List<string> { value };
+                    OnPropertyChanged(nameof(VideoPaths));
+                }
+                OnPropertyChanged(nameof(VideoFileName));
+            }
+        }
+    }
+
     private List<string> _videoPaths = new();
     public List<string> VideoPaths 
     { 
         get => _videoPaths; 
         set 
         { 
-            SetProperty(ref _videoPaths, value); 
-            OnPropertyChanged(nameof(VideoFileName)); 
+            if (SetProperty(ref _videoPaths, value))
+            {
+                _videoPath = value.Count > 0 ? value[0] : string.Empty;
+                OnPropertyChanged(nameof(VideoPath));
+                OnPropertyChanged(nameof(VideoFileName));
+            }
         } 
     }
 
+    // Primary Single Audio / Voice Source
     private string _voicePath = string.Empty;
     public string VoicePath 
     { 
@@ -64,6 +88,13 @@ public class VideoJob : INotifyPropertyChanged
 
     private ExportPreset _preset = new();
     public ExportPreset Preset { get => _preset; set => SetProperty(ref _preset, value); }
+
+    // OneShot specific configurations
+    private bool _enableSmartCut = true;
+    public bool EnableSmartCut { get => _enableSmartCut; set => SetProperty(ref _enableSmartCut, value); }
+
+    private bool _enableSilenceRemoval = true;
+    public bool EnableSilenceRemoval { get => _enableSilenceRemoval; set => SetProperty(ref _enableSilenceRemoval, value); }
 
     // Per-job custom trim & outro padding overrides
     private double _videoTrimStartSeconds;
@@ -99,18 +130,19 @@ public class VideoJob : INotifyPropertyChanged
     public TransitionType? CustomTransitionType { get => _customTransitionType; set => SetProperty(ref _customTransitionType, value); }
 
     public List<SceneSegment> DetectedScenes { get; set; } = new();
+    public List<OneShotClipSegment> OneShotClips { get; set; } = new();
     public List<TransitionPlanItem> PlannedTransitions { get; set; } = new();
 
     // Primary Display Names
-    public string VideoFileName => VideoPaths.Count == 1 
-        ? Path.GetFileName(VideoPaths[0]) 
-        : VideoPaths.Count > 1 
-            ? $"{Path.GetFileName(VideoPaths[0])} (+{VideoPaths.Count - 1} video khác)" 
+    public string VideoFileName => !string.IsNullOrEmpty(VideoPath) 
+        ? Path.GetFileName(VideoPath) 
+        : VideoPaths.Count > 0 
+            ? Path.GetFileName(VideoPaths[0]) 
             : "(Chưa chọn video)";
 
     public string VoiceFileName => !string.IsNullOrEmpty(VoicePath) 
         ? Path.GetFileName(VoicePath) 
-        : "(Chưa chọn giọng đọc)";
+        : "(Chưa chọn giọng đọc/nhạc)";
 
     public string OutputFileName => !string.IsNullOrEmpty(OutputPath) 
         ? Path.GetFileName(OutputPath) 
