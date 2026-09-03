@@ -6,7 +6,7 @@
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Auto Video Editor"
 #define MyAppExeName "AutoVideoEditor.App.exe"
-#define MySourceDir "..\bin\publish\AutoVideoEditor"
+#define MySourceDir "..\bin\publish\AutoVideoEditor_Standalone"
 
 [Setup]
 AppId={{5A4F79A1-21B0-4C98-9C45-8B92F2698D01}

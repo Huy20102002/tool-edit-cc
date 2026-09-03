@@ -5,12 +5,18 @@ echo          AUTO VIDEO EDITOR - BUILD & PACKAGE INSTALLER (.EXE)
 echo =====================================================================
 echo.
 
-echo [1/3] Đang biên dịch dự án (dotnet publish Release)...
-dotnet publish src/AutoVideoEditor.App/AutoVideoEditor.App.csproj -c Release -r win-x64 --self-contained false -o bin/publish/AutoVideoEditor
+echo [1/3] Đang biên dịch dự án Standalone (Không cần cài đặt .NET trên máy khác)...
+dotnet publish src/AutoVideoEditor.App/AutoVideoEditor.App.csproj -c Release -r win-x64 --self-contained true -o bin/publish/AutoVideoEditor_Standalone
 if %ERRORLEVEL% NEQ 0 (
     echo [LỖI] Biên dịch .NET thất bại.
     pause
     exit /b %ERRORLEVEL%
+)
+
+if exist "C:\ffmpeg\bin\ffmpeg.exe" (
+    if not exist "bin\publish\AutoVideoEditor_Standalone\ffmpeg" mkdir "bin\publish\AutoVideoEditor_Standalone\ffmpeg"
+    copy /y "C:\ffmpeg\bin\ffmpeg.exe" "bin\publish\AutoVideoEditor_Standalone\ffmpeg\ffmpeg.exe" >nul
+    copy /y "C:\ffmpeg\bin\ffprobe.exe" "bin\publish\AutoVideoEditor_Standalone\ffmpeg\ffprobe.exe" >nul
 )
 
 echo.
