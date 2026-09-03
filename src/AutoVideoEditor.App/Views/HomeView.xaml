@@ -227,10 +227,10 @@
                             </Grid>
 
                             <DataGrid ItemsSource="{Binding MatchedPairs}" SelectedItem="{Binding SelectedPair}" AutoGenerateColumns="False" CanUserAddRows="False"
-                                      Background="#121215" BorderBrush="#27272a" BorderThickness="1" RowHeight="40"
+                                      Background="#121215" BorderBrush="#27272a" BorderThickness="1" MinRowHeight="48"
                                       RowBackground="#18181b" AlternatingRowBackground="#141418" Foreground="#f4f4f5"
                                       HorizontalGridLinesBrush="#27272a" GridLinesVisibility="Horizontal"
-                                      MinHeight="180" MaxHeight="320" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                      MinHeight="180" MaxHeight="340" ScrollViewer.VerticalScrollBarVisibility="Auto"
                                       EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
                                     <!-- STT -->
@@ -245,18 +245,22 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
 
-                                    <!-- Video File & Change Button -->
-                                    <DataGridTemplateColumn Header="File Video" Width="1.5*">
+                                    <!-- Video File & Duration -->
+                                    <DataGridTemplateColumn Header="File Video" Width="1.4*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Grid VerticalAlignment="Center" Margin="4,0">
+                                                <Grid VerticalAlignment="Center" Margin="4,2">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding VideoFileName}" FontWeight="SemiBold" Foreground="#ffffff" TextTrimming="CharacterEllipsis" ToolTip="{Binding VideoFileName}" VerticalAlignment="Center" />
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding VideoFileName}" FontWeight="SemiBold" Foreground="#ffffff" TextTrimming="CharacterEllipsis" ToolTip="{Binding VideoFileName}" />
+                                                        <TextBlock Text="{Binding VideoDurationText}" FontSize="11" Foreground="#38bdf8" Margin="0,2,0,0"
+                                                                   Visibility="{Binding HasVideoDuration, Converter={StaticResource BoolToVis}}" />
+                                                    </StackPanel>
                                                     <Button Grid.Column="1" Content="📁" ToolTip="Đổi video này" Style="{StaticResource SecondaryButtonStyle}" 
-                                                            Padding="4,2" FontSize="10" Margin="4,0,0,0"
+                                                            Padding="4,2" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center"
                                                             Command="{Binding DataContext.ChangeVideoForPairCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
@@ -264,17 +268,17 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
-                                    <!-- Voice File & Assign Button -->
-                                    <DataGridTemplateColumn Header="File Voice" Width="1.5*">
+                                    <!-- Voice File & Duration -->
+                                    <DataGridTemplateColumn Header="File Voice / Nhạc" Width="1.4*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Grid VerticalAlignment="Center" Margin="4,0">
+                                                <Grid VerticalAlignment="Center" Margin="4,2">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding VoiceFileName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding VoiceFileName}" VerticalAlignment="Center">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding VoiceFileName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding VoiceFileName}">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Foreground" Value="#34d399" />
@@ -289,9 +293,11 @@
                                                                 </Style>
                                                             </TextBlock.Style>
                                                         </TextBlock>
+                                                        <TextBlock Text="{Binding VoiceDurationText}" FontSize="11" Foreground="#34d399" Margin="0,2,0,0"
+                                                                   Visibility="{Binding HasVoiceDuration, Converter={StaticResource BoolToVis}}" />
                                                     </StackPanel>
                                                     <Button Grid.Column="1" Content="🎙️ Chọn Voice" Style="{StaticResource SecondaryButtonStyle}" 
-                                                            Padding="6,2" FontSize="10" Margin="4,0,0,0"
+                                                            Padding="6,2" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center"
                                                             Command="{Binding DataContext.ChangeVoiceForPairCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
@@ -299,19 +305,41 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
+                                    <!-- Duration Comparison Alert / Status -->
+                                    <DataGridTemplateColumn Header="So Khớp Thời Lượng" Width="1.6*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#09090b" BorderBrush="{Binding DurationComparisonColor}" BorderThickness="1" CornerRadius="4" Padding="6,3" Margin="2,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DurationComparisonText}" Foreground="{Binding DurationComparisonColor}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Silence Removal Toggle Per Row -->
+                                    <DataGridTemplateColumn Header="Cắt Silence" Width="75">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding EnableSilenceRemoval, UpdateSourceTrigger=PropertyChanged}" 
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                                          ToolTip="Bật/Tắt cắt khoảng lặng cho riêng video này" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <!-- Custom Output Name Column -->
-                                    <DataGridTemplateColumn Header="Tên File Xuất" Width="1.4*">
+                                    <DataGridTemplateColumn Header="Tên File Xuất" Width="1.2*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding CustomOutputName, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="6,2" 
                                                          Background="#09090b" Foreground="#38bdf8" BorderBrush="#3f3f46" BorderThickness="1" FontWeight="Medium"
-                                                         VerticalContentAlignment="Center" ToolTip="Tên file khi xuất (bạn có thể gõ trực tiếp tên riêng ở đây)" />
+                                                         VerticalContentAlignment="Center" ToolTip="Tên file khi xuất" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
                                     <!-- Custom Transition Stepper [ - ] [ 2 ] [ + ] -->
-                                    <DataGridTemplateColumn Header="Chuyển Cảnh" Width="115">
+                                    <DataGridTemplateColumn Header="Chuyển Cảnh" Width="110">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Border Background="#121215" BorderBrush="#3f3f46" BorderThickness="1" CornerRadius="6" Height="28" Padding="1" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -333,7 +361,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Custom Transition Type -->
-                                    <DataGridTemplateColumn Header="Kiểu" Width="115">
+                                    <DataGridTemplateColumn Header="Kiểu" Width="110">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{Binding DataContext.AvailableTransitionOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -346,54 +374,32 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Trim Video Start -->
-                                    <DataGridTemplateColumn Header="Cắt đầu Video (s)" Width="0.9*">
+                                    <DataGridTemplateColumn Header="Cắt đầu (s)" Width="75">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBox Text="{Binding VideoTrimStart, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
+                                                <TextBox Text="{Binding VideoTrimStart, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="2,2" 
                                                          Background="#09090b" Foreground="#f4f4f5" BorderBrush="#3f3f46" BorderThickness="1"
-                                                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                                                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="Cắt đầu video (giây)" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
                                     <!-- Trim Video End -->
-                                    <DataGridTemplateColumn Header="Cắt đuôi Video (s)" Width="0.9*">
+                                    <DataGridTemplateColumn Header="Cắt đuôi (s)" Width="75">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBox Text="{Binding VideoTrimEnd, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
+                                                <TextBox Text="{Binding VideoTrimEnd, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="2,2" 
                                                          Background="#09090b" Foreground="#f4f4f5" BorderBrush="#3f3f46" BorderThickness="1"
-                                                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-
-                                    <!-- Trim Voice Start -->
-                                    <DataGridTemplateColumn Header="Cắt đầu Voice (s)" Width="0.9*">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding VoiceTrimStart, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
-                                                         Background="#09090b" Foreground="#f4f4f5" BorderBrush="#3f3f46" BorderThickness="1"
-                                                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-
-                                    <!-- Trim Voice End -->
-                                    <DataGridTemplateColumn Header="Cắt đuôi Voice (s)" Width="0.9*">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding VoiceTrimEnd, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
-                                                         Background="#09090b" Foreground="#f4f4f5" BorderBrush="#3f3f46" BorderThickness="1"
-                                                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                                                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="Cắt đuôi video (giây)" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
                                     <!-- Outro Padding -->
-                                    <DataGridTemplateColumn Header="Dư cuối (s)" Width="0.8*">
+                                    <DataGridTemplateColumn Header="Dư cuối (s)" Width="75">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBox Text="{Binding ExtraEndPadding, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="4,2" 
+                                                <TextBox Text="{Binding ExtraEndPadding, UpdateSourceTrigger=PropertyChanged}" Height="28" Padding="2,2" 
                                                          Background="#09090b" Foreground="#fbbf24" BorderBrush="#3f3f46" BorderThickness="1" FontWeight="SemiBold"
                                                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="Số giây video chạy thêm sau khi giọng đọc kết thúc" />
                                             </DataTemplate>
@@ -405,9 +411,9 @@
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Button Content="✕" ToolTip="Xóa dòng này" Style="{StaticResource DangerButtonStyle}" 
-                                                        Padding="0" Width="24" Height="24" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                        Command="{Binding DataContext.RemovePairCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        CommandParameter="{Binding}" />
+                                                         Padding="0" Width="24" Height="24" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                         Command="{Binding DataContext.RemovePairCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                         CommandParameter="{Binding}" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>

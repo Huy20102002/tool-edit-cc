@@ -35,9 +35,92 @@ public partial class MatchedPairItem : ObservableObject
 
     public string VoiceFileName => !string.IsNullOrEmpty(VoicePath) 
         ? Path.GetFileName(VoicePath) 
-        : "(Chưa gán giọng đọc)";
+        : "(Chưa gán giọng đọc/nhạc)";
 
     public bool HasVoice => !string.IsNullOrEmpty(VoicePath) && File.Exists(VoicePath);
+
+    // Durations & Status
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VideoDurationText))]
+    [NotifyPropertyChangedFor(nameof(HasVideoDuration))]
+    [NotifyPropertyChangedFor(nameof(DurationComparisonText))]
+    [NotifyPropertyChangedFor(nameof(DurationComparisonColor))]
+    [NotifyPropertyChangedFor(nameof(IsVideoLongerThanVoice))]
+    private double _videoDurationSeconds;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VoiceDurationText))]
+    [NotifyPropertyChangedFor(nameof(HasVoiceDuration))]
+    [NotifyPropertyChangedFor(nameof(DurationComparisonText))]
+    [NotifyPropertyChangedFor(nameof(DurationComparisonColor))]
+    [NotifyPropertyChangedFor(nameof(IsVideoLongerThanVoice))]
+    private double _voiceDurationSeconds;
+
+    public bool HasVideoDuration => VideoDurationSeconds > 0;
+    public bool HasVoiceDuration => VoiceDurationSeconds > 0;
+
+    public string VideoDurationText => VideoDurationSeconds > 0 
+        ? $"⏱️ {FormatTime(VideoDurationSeconds)} ({VideoDurationSeconds:F1}s)" 
+        : "";
+
+    public string VoiceDurationText => VoiceDurationSeconds > 0 
+        ? $"⏱️ {FormatTime(VoiceDurationSeconds)} ({VoiceDurationSeconds:F1}s)" 
+        : "";
+
+    public bool IsVideoLongerThanVoice => VideoDurationSeconds > (VoiceDurationSeconds + 1.0) && VoiceDurationSeconds > 0;
+
+    public string DurationComparisonText
+    {
+        get
+        {
+            if (VideoDurationSeconds > 0 && VoiceDurationSeconds > 0)
+            {
+                if (VideoDurationSeconds > VoiceDurationSeconds + 1.0)
+                {
+                    var diff = VideoDurationSeconds - VoiceDurationSeconds;
+                    return $"⚠️ Video dài hơn Voice (+{diff:F1}s) — Sẽ Smart Cut hoặc chỉnh cắt đầu/đuôi";
+                }
+                else if (VoiceDurationSeconds > VideoDurationSeconds + 1.0)
+                {
+                    var diff = VoiceDurationSeconds - VideoDurationSeconds;
+                    return $"🔁 Voice dài hơn Video (+{diff:F1}s) — Sẽ tự động lặp video";
+                }
+                else
+                {
+                    return $"✓ Khớp thời lượng ({VideoDurationSeconds:F1}s)";
+                }
+            }
+            return string.Empty;
+        }
+    }
+
+    public string DurationComparisonColor
+    {
+        get
+        {
+            if (VideoDurationSeconds > 0 && VoiceDurationSeconds > 0)
+            {
+                if (VideoDurationSeconds > VoiceDurationSeconds + 1.0)
+                    return "#fbbf24"; // Amber warning
+                if (VoiceDurationSeconds > VideoDurationSeconds + 1.0)
+                    return "#38bdf8"; // Cyan info
+                return "#34d399"; // Green success
+            }
+            return "#a1a1aa";
+        }
+    }
+
+    private static string FormatTime(double totalSeconds)
+    {
+        var ts = TimeSpan.FromSeconds(totalSeconds);
+        return ts.TotalHours >= 1 
+            ? $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}" 
+            : $"{ts.Minutes:D2}:{ts.Seconds:D2}";
+    }
+
+    // Per-job silence removal toggle
+    [ObservableProperty]
+    private bool _enableSilenceRemoval = true;
 
     [ObservableProperty]
     private string _customOutputName = string.Empty;
@@ -70,6 +153,7 @@ public partial class HomeViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IJobManager _jobManager;
     private readonly ILogService _logService;
+    private readonly IFFprobeService _probeService;
 
     private static readonly string[] VideoExtensions = { ".mp4", ".mov", ".mkv", ".avi", ".webm" };
     private static readonly string[] AudioExtensions = { ".mp3", ".wav", ".m4a", ".aac", ".flac" };
@@ -145,14 +229,46 @@ public partial class HomeViewModel : ObservableObject
         IPresetService presetService,
         ISettingsService settingsService,
         IJobManager jobManager,
-        ILogService logService)
+        ILogService logService,
+        IFFprobeService probeService)
     {
         _presetService = presetService;
         _settingsService = settingsService;
         _jobManager = jobManager;
         _logService = logService;
+        _probeService = probeService;
 
         _ = LoadInitialDataAsync();
+    }
+
+    public async Task ProbePairDurationsAsync(MatchedPairItem pair)
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(pair.VideoPath) && File.Exists(pair.VideoPath) && pair.VideoDurationSeconds <= 0)
+            {
+                var vInfo = await _probeService.ProbeFileAsync(pair.VideoPath);
+                pair.VideoDurationSeconds = vInfo.DurationSeconds;
+            }
+
+            if (!string.IsNullOrEmpty(pair.VoicePath) && File.Exists(pair.VoicePath) && pair.VoiceDurationSeconds <= 0)
+            {
+                var aInfo = await _probeService.ProbeFileAsync(pair.VoicePath);
+                pair.VoiceDurationSeconds = aInfo.DurationSeconds;
+            }
+        }
+        catch
+        {
+            // Ignore probe errors in UI
+        }
+    }
+
+    partial void OnEnableSilenceRemovalChanged(bool value)
+    {
+        foreach (var pair in MatchedPairs)
+        {
+            pair.EnableSilenceRemoval = value;
+        }
     }
 
     private async Task LoadInitialDataAsync()
@@ -379,6 +495,8 @@ public partial class HomeViewModel : ObservableObject
         if (dialog.ShowDialog() == true && File.Exists(dialog.FileName))
         {
             item.VoicePath = dialog.FileName;
+            item.VoiceDurationSeconds = 0;
+            _ = ProbePairDurationsAsync(item);
             if (!ImportedVoicePaths.Contains(dialog.FileName))
             {
                 ImportedVoicePaths.Add(dialog.FileName);
@@ -401,6 +519,8 @@ public partial class HomeViewModel : ObservableObject
         if (dialog.ShowDialog() == true && File.Exists(dialog.FileName))
         {
             item.VideoPaths = new List<string> { dialog.FileName };
+            item.VideoDurationSeconds = 0;
+            _ = ProbePairDurationsAsync(item);
             if (!ImportedVideoPaths.Contains(dialog.FileName))
             {
                 ImportedVideoPaths.Add(dialog.FileName);
@@ -454,7 +574,7 @@ public partial class HomeViewModel : ObservableObject
                 VoicePath = pair.VoicePath,
                 Preset = SelectedPreset.Clone(),
                 EnableSmartCut = EnableSmartCut,
-                EnableSilenceRemoval = EnableSilenceRemoval,
+                EnableSilenceRemoval = pair.EnableSilenceRemoval,
                 VideoTrimStartSeconds = pair.VideoTrimStart,
                 VideoTrimEndSeconds = pair.VideoTrimEnd,
                 VoiceTrimStartSeconds = pair.VoiceTrimStart,
@@ -573,6 +693,7 @@ public partial class HomeViewModel : ObservableObject
                     Index = idx++,
                     VideoPaths = new List<string> { video },
                     VoicePath = voiceToAssign,
+                    EnableSilenceRemoval = EnableSilenceRemoval,
                     CustomOutputName = customName,
                     TransitionCount = defaultTransCount,
                     TransitionType = defaultTransType,
@@ -597,6 +718,7 @@ public partial class HomeViewModel : ObservableObject
                     Index = idx++,
                     VideoPaths = new List<string> { vPath },
                     VoicePath = voiceToAssign,
+                    EnableSilenceRemoval = EnableSilenceRemoval,
                     CustomOutputName = customName,
                     TransitionCount = defaultTransCount,
                     TransitionType = defaultTransType,
@@ -610,6 +732,10 @@ public partial class HomeViewModel : ObservableObject
         }
 
         MatchedPairs = new ObservableCollection<MatchedPairItem>(pairs);
+        foreach (var pair in MatchedPairs)
+        {
+            _ = ProbePairDurationsAsync(pair);
+        }
         UpdateSummaryCounters();
     }
 

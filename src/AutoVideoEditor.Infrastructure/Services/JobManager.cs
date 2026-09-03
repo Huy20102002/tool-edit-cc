@@ -344,16 +344,34 @@ public class JobManager : IJobManager
 
             // 3. Voice Analysis (Silence detection & Master Timeline)
             UpdateJobState(job, JobStatus.AnalyzingVoice, "Đang phân tích âm thanh...", 15);
-            _logService.LogInfo("Đang phân tích audio/voice & cắt khoảng lặng...", jId, tag);
 
-            job.VoiceAnalysis = await _audioAnalyzer.AnalyzeVoiceAsync(
-                job.VoicePath,
-                job.Preset.SilenceThresholdDb,
-                job.Preset.MinSilenceDurationMs,
-                job.Preset.PaddingBeforeMs,
-                job.Preset.PaddingAfterMs,
-                400,
-                ct).ConfigureAwait(false);
+            if (!job.EnableSilenceRemoval)
+            {
+                var aInfo = await _probeService.ProbeFileAsync(job.VoicePath, ct).ConfigureAwait(false);
+                var rawDur = Math.Max(0.1, aInfo.DurationSeconds);
+                job.VoiceAnalysis = new AudioAnalysisResult
+                {
+                    OriginalDurationSeconds = rawDur,
+                    ProcessedDurationSeconds = rawDur,
+                    SpeechSegments = new List<SpeechSegment>
+                    {
+                        new SpeechSegment(1, 0, rawDur)
+                    }
+                };
+                _logService.LogInfo("Cắt khoảng lặng: TẮT (Giữ nguyên toàn bộ âm thanh gốc).", jId, tag);
+            }
+            else
+            {
+                _logService.LogInfo("Đang phân tích audio/voice & cắt khoảng lặng...", jId, tag);
+                job.VoiceAnalysis = await _audioAnalyzer.AnalyzeVoiceAsync(
+                    job.VoicePath,
+                    job.Preset.SilenceThresholdDb,
+                    job.Preset.MinSilenceDurationMs,
+                    job.Preset.PaddingBeforeMs,
+                    job.Preset.PaddingAfterMs,
+                    400,
+                    ct).ConfigureAwait(false);
+            }
 
             var vTrimStart = job.VoiceTrimStartSeconds > 0.001 ? job.VoiceTrimStartSeconds : Math.Max(0.0, job.Preset.VoiceTrimStartSeconds);
             var vTrimEnd = job.VoiceTrimEndSeconds > 0.001 ? job.VoiceTrimEndSeconds : Math.Max(0.0, job.Preset.VoiceTrimEndSeconds);
