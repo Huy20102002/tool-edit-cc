@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Auto Video Editor — Tự Động Dựng Video Hàng Loạt</value>
+  </data>
+  <data name="NavHome" xml:space="preserve">
+    <value>Trang chủ</value>
+  </data>
+  <data name="NavQueue" xml:space="preserve">
+    <value>Hàng đợi</value>
+  </data>
+  <data name="NavPreview" xml:space="preserve">
+    <value>Xem trước</value>
+  </data>
+  <data name="NavPresets" xml:space="preserve">
+    <value>Mẫu xuất</value>
+  </data>
+  <data name="NavSettings" xml:space="preserve">
+    <value>Cài đặt</value>
+  </data>
+  <data name="NavLogs" xml:space="preserve">
+    <value>Nhật ký</value>
+  </data>
+  <data name="BtnAutoCreateVideo" xml:space="preserve">
+    <value>⚡ TỰ ĐỘNG TẠO VIDEO</value>
+  </data>
+  <data name="StatusPending" xml:space="preserve">
+    <value>Đang chờ</value>
+  </data>
+  <data name="StatusAnalyzingVoice" xml:space="preserve">
+    <value>Đang phân tích giọng đọc...</value>
+  </data>
+  <data name="StatusDetectingSilence" xml:space="preserve">
+    <value>Đang phát hiện khoảng lặng...</value>
+  </data>
+  <data name="StatusAnalyzingVideo" xml:space="preserve">
+    <value>Đang phân tích video...</value>
+  </data>
+  <data name="StatusBuildingTimeline" xml:space="preserve">
+    <value>Đang xây dựng timeline...</value>
+  </data>
+  <data name="StatusRendering" xml:space="preserve">
+    <value>Đang mã hóa video...</value>
+  </data>
+  <data name="StatusCompleted" xml:space="preserve">
+    <value>Hoàn thành</value>
+  </data>
+  <data name="StatusFailed" xml:space="preserve">
+    <value>Thất bại</value>
+  </data>
+  <data name="StatusCanceled" xml:space="preserve">
+    <value>Đã hủy</value>
+  </data>
+  <data name="StatusPaused" xml:space="preserve">
+    <value>Tạm dừng</value>
+  </data>
+</root>

@@ -1,0 +1,22 @@
+<Application x:Class="AutoVideoEditor.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:AutoVideoEditor.App.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <converters:JobStatusToVietnameseConverter x:Key="JobStatusToVietnamese" />
+            <converters:JobStatusToBrushConverter x:Key="JobStatusToBrush" />
+            <converters:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
+            <converters:LogLevelToBgBrushConverter x:Key="LogLevelToBgBrush" />
+            <converters:InverseBoolConverter x:Key="InverseBool" />
+            <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
+            <converters:DoubleToPercentStringConverter x:Key="DoubleToPercent" />
+            <converters:FormatEtaConverter x:Key="FormatEta" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

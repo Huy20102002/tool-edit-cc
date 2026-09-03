@@ -1,0 +1,28 @@
+## Visual Studio / .NET / Build output
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+## Test / Output artifacts
+*.mp4
+*.mov
+*.wav
+*.mp3
+*.aac
+test_*.mp4
+test_*.wav
+test_*.mp3
+bin/publish/
+
+## OS Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

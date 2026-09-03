@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AutoVideoEditor.App/AutoVideoEditor.App.csproj" />
+    <Project Path="src/AutoVideoEditor.AudioEngine/AutoVideoEditor.AudioEngine.csproj" />
+    <Project Path="src/AutoVideoEditor.Core/AutoVideoEditor.Core.csproj" />
+    <Project Path="src/AutoVideoEditor.Infrastructure/AutoVideoEditor.Infrastructure.csproj" />
+    <Project Path="src/AutoVideoEditor.VideoEngine/AutoVideoEditor.VideoEngine.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AutoVideoEditor.Tests/AutoVideoEditor.Tests.csproj" />
+  </Folder>
+</Solution>
