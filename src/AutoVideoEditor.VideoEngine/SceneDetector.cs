@@ -47,7 +47,7 @@ public class SceneDetector : ISceneDetector
 
             var ffmpegPath = _locator.GetFFmpegPath();
             var threshStr = sceneThreshold.ToString("F2", CultureInfo.InvariantCulture);
-            var arguments = $"-i \"{videoFilePath}\" -filter_complex \"select='gt(scene,{threshStr})',showinfo\" -f null -";
+            var arguments = $"-an -sn -i \"{videoFilePath}\" -vf \"scale=-2:240,select='gt(scene,{threshStr})',showinfo\" -f null -";
 
             var cutPoints = new List<double> { 0.0 };
 

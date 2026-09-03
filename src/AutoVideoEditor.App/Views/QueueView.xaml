@@ -67,7 +67,8 @@
                           Background="Transparent" BorderThickness="0" GridLinesVisibility="Horizontal"
                           HorizontalGridLinesBrush="#27272a" HeadersVisibility="Column"
                           RowBackground="#18181b" AlternatingRowBackground="#121215"
-                          Foreground="#f4f4f5" SelectionMode="Single" SelectionUnit="FullRow">
+                          Foreground="#f4f4f5" SelectionMode="Single" SelectionUnit="FullRow"
+                          EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     
                     <DataGrid.ColumnHeaderStyle>
                         <Style TargetType="DataGridColumnHeader">

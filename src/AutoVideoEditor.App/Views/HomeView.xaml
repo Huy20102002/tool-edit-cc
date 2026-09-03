@@ -234,7 +234,8 @@
                                       Background="#121215" BorderBrush="#27272a" BorderThickness="1" RowHeight="40"
                                       RowBackground="#18181b" AlternatingRowBackground="#141418" Foreground="#f4f4f5"
                                       HorizontalGridLinesBrush="#27272a" GridLinesVisibility="Horizontal"
-                                      MinHeight="180" MaxHeight="320" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                      MinHeight="180" MaxHeight="320" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                      EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
                                     <!-- STT -->
                                     <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="35" IsReadOnly="True">

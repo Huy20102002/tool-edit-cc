@@ -53,7 +53,7 @@ public class SilenceDetector : ISilenceDetector
         // 2. Run FFmpeg silencedetect
         var minSilenceSec = Math.Max(0.1, minSilenceDurationMs / 1000.0);
         var ffmpegPath = _locator.GetFFmpegPath();
-        var arguments = $"-i \"{audioFilePath}\" -af \"silencedetect=noise={silenceThresholdDb.ToString("F1", CultureInfo.InvariantCulture)}dB:d={minSilenceSec.ToString("F3", CultureInfo.InvariantCulture)}\" -f null -";
+        var arguments = $"-vn -sn -dn -i \"{audioFilePath}\" -af \"silencedetect=noise={silenceThresholdDb.ToString("F1", CultureInfo.InvariantCulture)}dB:d={minSilenceSec.ToString("F3", CultureInfo.InvariantCulture)}\" -f null -";
 
         var detectedSilences = new List<(double Start, double End)>();
         double? currentSilenceStart = null;
