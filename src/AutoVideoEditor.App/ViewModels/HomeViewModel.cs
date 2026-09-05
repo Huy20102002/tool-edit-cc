@@ -252,6 +252,12 @@ public partial class HomeViewModel : ObservableObject
     private string _capCutProjectName = string.Empty;
 
     [ObservableProperty]
+    private ObservableCollection<CapCutProjectTemplateInfo> _availableCapCutTemplates = new();
+
+    [ObservableProperty]
+    private CapCutProjectTemplateInfo? _selectedCapCutTemplate;
+
+    [ObservableProperty]
     private bool _isExportingToCapCut;
 
     private readonly ICapCutDraftService _capCutDraftService;
@@ -296,6 +302,33 @@ public partial class HomeViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    public async Task RefreshCapCutTemplatesAsync()
+    {
+        await Task.Run(() =>
+        {
+            var templates = _capCutDraftService.GetAvailableTemplates();
+            var list = new List<CapCutProjectTemplateInfo>
+            {
+                new CapCutProjectTemplateInfo
+                {
+                    Name = "(Mặc định - Chuẩn CapCut)",
+                    FolderPath = string.Empty,
+                    TracksCount = 0,
+                    TextsCount = 0,
+                    StickersCount = 0
+                }
+            };
+            list.AddRange(templates);
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                AvailableCapCutTemplates = new ObservableCollection<CapCutProjectTemplateInfo>(list);
+                SelectedCapCutTemplate = AvailableCapCutTemplates.FirstOrDefault();
+            });
+        });
+    }
+
     private async Task LoadInitialDataAsync()
     {
         var presets = await _presetService.GetAllPresetsAsync();
@@ -304,6 +337,8 @@ public partial class HomeViewModel : ObservableObject
 
         var settings = await _settingsService.LoadSettingsAsync();
         OutputDirectory = settings.OutputDirectory;
+
+        await RefreshCapCutTemplatesAsync();
     }
 
     partial void OnQuickTransitionCountChanged(int value)
@@ -658,13 +693,26 @@ public partial class HomeViewModel : ObservableObject
                 TransitionType = p.TransitionType
             }).ToList();
 
-            var result = await _capCutDraftService.ExportMultiTimelineProjectAsync(projectName, exportItems);
+            var templatePath = string.IsNullOrWhiteSpace(SelectedCapCutTemplate?.FolderPath)
+                ? null
+                : SelectedCapCutTemplate.FolderPath;
+
+            var result = await _capCutDraftService.ExportMultiTimelineProjectAsync(
+                projectName,
+                exportItems,
+                templateFolderPath: templatePath);
+
             if (result.Success)
             {
+                var templateInfo = !string.IsNullOrEmpty(result.TemplateUsed)
+                    ? $"\n• Mẫu áp dụng (Template): {result.TemplateUsed}"
+                    : "";
+
                 var ask = System.Windows.MessageBox.Show(
                     $"✓ Đã xuất thành công Dự Án CapCut Multi-Timeline!\n\n" +
                     $"• Tên Dự Án: {result.ProjectName}\n" +
-                    $"• Số Dòng Thời Gian (Timelines): {result.TimelinesCount}\n" +
+                    $"• Số Dòng Thời Gian (Timelines): {result.TimelinesCount}" +
+                    $"{templateInfo}\n" +
                     $"• Vị trí lưu: {result.ProjectDirectory}\n\n" +
                     $"Dự án đã tự động xuất hiện ở màn hình chính của CapCut PC.\n" +
                     $"Bạn có muốn mở thư mục dự án này ngay không?",

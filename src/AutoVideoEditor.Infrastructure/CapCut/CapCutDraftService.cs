@@ -39,10 +39,108 @@ public class CapCutDraftService : ICapCutDraftService
         return candidates[0];
     }
 
+    public List<CapCutProjectTemplateInfo> GetAvailableTemplates(string? customDraftsRootDir = null)
+    {
+        var draftsRoot = !string.IsNullOrWhiteSpace(customDraftsRootDir)
+            ? customDraftsRootDir
+            : DetectCapCutDraftsRootDirectory();
+
+        var result = new List<CapCutProjectTemplateInfo>();
+        if (string.IsNullOrWhiteSpace(draftsRoot) || !Directory.Exists(draftsRoot))
+        {
+            return result;
+        }
+
+        try
+        {
+            var dirs = Directory.GetDirectories(draftsRoot);
+            foreach (var dir in dirs)
+            {
+                var draftContentFile = Path.Combine(dir, "draft_content.json");
+                if (!File.Exists(draftContentFile))
+                    continue;
+
+                try
+                {
+                    var dirInfo = new DirectoryInfo(dir);
+                    var textCount = 0;
+                    var stickerCount = 0;
+                    var audioCount = 0;
+                    var trackCount = 0;
+                    var projName = dirInfo.Name;
+
+                    // Read draft_meta_info.json if available
+                    var metaFile = Path.Combine(dir, "draft_meta_info.json");
+                    if (File.Exists(metaFile))
+                    {
+                        try
+                        {
+                            var metaJson = JsonNode.Parse(File.ReadAllText(metaFile))?.AsObject();
+                            var metaName = metaJson?["draft_name"]?.ToString();
+                            if (!string.IsNullOrWhiteSpace(metaName))
+                            {
+                                projName = metaName;
+                            }
+                        }
+                        catch
+                        {
+                            // fallback to dirInfo.Name
+                        }
+                    }
+
+                    // Parse draft_content.json counts
+                    try
+                    {
+                        var contentJson = JsonNode.Parse(File.ReadAllText(draftContentFile))?.AsObject();
+                        if (contentJson != null)
+                        {
+                            if (contentJson.ContainsKey("materials") && contentJson["materials"] is JsonObject mat)
+                            {
+                                textCount = mat["texts"]?.AsArray().Count ?? 0;
+                                stickerCount = mat["stickers"]?.AsArray().Count ?? 0;
+                                audioCount = mat["audios"]?.AsArray().Count ?? 0;
+                            }
+                            if (contentJson.ContainsKey("tracks") && contentJson["tracks"] is JsonArray trk)
+                            {
+                                trackCount = trk.Count;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore individual JSON parse errors for corrupted drafts
+                    }
+
+                    result.Add(new CapCutProjectTemplateInfo
+                    {
+                        Name = projName,
+                        FolderPath = dir,
+                        TracksCount = trackCount,
+                        TextsCount = textCount,
+                        StickersCount = stickerCount,
+                        AudiosCount = audioCount,
+                        LastModified = dirInfo.LastWriteTime
+                    });
+                }
+                catch
+                {
+                    // Ignore directory read error
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error scanning CapCut drafts in {Dir}", draftsRoot);
+        }
+
+        return result.OrderByDescending(t => t.LastModified).ToList();
+    }
+
     public async Task<CapCutExportResult> ExportMultiTimelineProjectAsync(
         string projectName,
         IReadOnlyList<CapCutExportItem> items,
         string? targetDraftsRootDir = null,
+        string? templateFolderPath = null,
         CancellationToken cancellationToken = default)
     {
         if (items == null || items.Count == 0)
@@ -80,6 +178,33 @@ public class CapCutDraftService : ICapCutDraftService
 
             var nowTimestampUs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
             var projectGuid = Guid.NewGuid().ToString().ToUpperInvariant();
+
+            // Check if a template project is selected
+            JsonObject? templateDraftJson = null;
+            long templateOrigDurUs = 10_000_000;
+            string templateNameUsed = string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(templateFolderPath) && Directory.Exists(templateFolderPath))
+            {
+                var tContentPath = Path.Combine(templateFolderPath, "draft_content.json");
+                if (File.Exists(tContentPath))
+                {
+                    try
+                    {
+                        templateDraftJson = JsonNode.Parse(await File.ReadAllTextAsync(tContentPath, cancellationToken).ConfigureAwait(false))?.AsObject();
+                        if (templateDraftJson != null)
+                        {
+                            templateOrigDurUs = templateDraftJson["duration"]?.GetValue<long>() ?? 10_000_000;
+                            templateNameUsed = Path.GetFileName(templateFolderPath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Failed to parse template draft JSON from {Path}. Proceeding with standard layout.", templateFolderPath);
+                        templateDraftJson = null;
+                    }
+                }
+            }
 
             var timelineList = new List<JsonObject>();
             string firstTimelineContentJson = string.Empty;
@@ -144,22 +269,47 @@ public class CapCutDraftService : ICapCutDraftService
                 var timelineDir = Path.Combine(timelinesDir, timelineGuid);
                 Directory.CreateDirectory(timelineDir);
 
-                var timelineContent = BuildTimelineDraftContent(
-                    timelineGuid,
-                    timelineName,
-                    item.VideoPath,
-                    item.VoicePath,
-                    videoDurationUs,
-                    voiceDurationUs,
-                    vTrimStartUs,
-                    effectiveVideoDurUs,
-                    voiceTrimStartUs,
-                    effectiveVoiceDurUs,
-                    masterDurationUs,
-                    item.MuteOriginalAudio,
-                    item.TransitionCount,
-                    item.TransitionType,
-                    nowTimestampUs);
+                JsonObject timelineContent;
+                if (templateDraftJson != null)
+                {
+                    timelineContent = BuildTimelineDraftContentFromTemplate(
+                        templateDraftJson,
+                        templateOrigDurUs,
+                        timelineGuid,
+                        timelineName,
+                        item.VideoPath,
+                        item.VoicePath,
+                        videoDurationUs,
+                        voiceDurationUs,
+                        vTrimStartUs,
+                        effectiveVideoDurUs,
+                        voiceTrimStartUs,
+                        effectiveVoiceDurUs,
+                        masterDurationUs,
+                        item.MuteOriginalAudio,
+                        item.TransitionCount,
+                        item.TransitionType,
+                        nowTimestampUs);
+                }
+                else
+                {
+                    timelineContent = BuildTimelineDraftContent(
+                        timelineGuid,
+                        timelineName,
+                        item.VideoPath,
+                        item.VoicePath,
+                        videoDurationUs,
+                        voiceDurationUs,
+                        vTrimStartUs,
+                        effectiveVideoDurUs,
+                        voiceTrimStartUs,
+                        effectiveVoiceDurUs,
+                        masterDurationUs,
+                        item.MuteOriginalAudio,
+                        item.TransitionCount,
+                        item.TransitionType,
+                        nowTimestampUs);
+                }
 
                 var timelineJsonStr = timelineContent.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
                 await File.WriteAllTextAsync(Path.Combine(timelineDir, "draft_content.json"), timelineJsonStr, cancellationToken).ConfigureAwait(false);
@@ -228,15 +378,16 @@ public class CapCutDraftService : ICapCutDraftService
             // 6. Register into CapCut's root_meta_info.json (Home projects list)
             await RegisterInRootMetaInfoAsync(draftsRoot, cleanProjectName, projectGuid, nowTimestampUs, cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation("Successfully exported CapCut Multi-Timeline project '{ProjectName}' with {Count} timelines to {Dir}",
-                cleanProjectName, items.Count, projectDir);
+            _logger?.LogInformation("Successfully exported CapCut Multi-Timeline project '{ProjectName}' (Template: {Template}) with {Count} timelines to {Dir}",
+                cleanProjectName, templateNameUsed, items.Count, projectDir);
 
             return new CapCutExportResult
             {
                 Success = true,
                 ProjectName = cleanProjectName,
                 ProjectDirectory = projectDir,
-                TimelinesCount = items.Count
+                TimelinesCount = items.Count,
+                TemplateUsed = templateNameUsed
             };
         }
         catch (Exception ex)
@@ -248,6 +399,285 @@ public class CapCutDraftService : ICapCutDraftService
                 ErrorMessage = $"Lỗi khi tạo dự án CapCut: {ex.Message}"
             };
         }
+    }
+
+    private static JsonObject BuildTimelineDraftContentFromTemplate(
+        JsonObject templateDraftJson,
+        long templateOrigDurUs,
+        string timelineId,
+        string timelineName,
+        string videoPath,
+        string voicePath,
+        long videoDurationUs,
+        long voiceDurationUs,
+        long vTrimStartUs,
+        long effectiveVideoDurUs,
+        long voiceTrimStartUs,
+        long effectiveVoiceDurUs,
+        long masterDurationUs,
+        bool muteOriginalAudio,
+        int transitionCount,
+        AutoVideoEditor.Core.Enums.TransitionType transitionType,
+        long timestampUs)
+    {
+        // Deep clone template json
+        var clonedJsonStr = templateDraftJson.ToJsonString();
+        var root = JsonNode.Parse(clonedJsonStr)?.AsObject() ?? new JsonObject();
+
+        var finalDurationUs = masterDurationUs > 0 ? masterDurationUs : effectiveVideoDurUs;
+
+        root["id"] = timelineId;
+        root["name"] = timelineName;
+        root["duration"] = finalDurationUs;
+        root["create_time"] = timestampUs;
+        root["update_time"] = timestampUs;
+
+        if (root.ContainsKey("config") && root["config"] is JsonObject cfg)
+        {
+            cfg["video_mute"] = muteOriginalAudio;
+        }
+
+        var vidMatId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var audMatId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var speedVidId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var speedAudId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var canvasId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var scmVidId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var scmAudId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var vocVidId = Guid.NewGuid().ToString().ToUpperInvariant();
+        var vocAudId = Guid.NewGuid().ToString().ToUpperInvariant();
+
+        var cleanVidPath = videoPath.Replace("\\", "/");
+        var cleanVoicePath = voicePath.Replace("\\", "/");
+        var vidFileName = Path.GetFileName(videoPath);
+        var voiceFileName = Path.GetFileName(voicePath);
+
+        // Add new materials
+        if (!root.ContainsKey("materials") || root["materials"] is not JsonObject materials)
+        {
+            materials = new JsonObject();
+            root["materials"] = materials;
+        }
+
+        if (!materials.ContainsKey("videos") || materials["videos"] is not JsonArray matVideos)
+        {
+            matVideos = new JsonArray();
+            materials["videos"] = matVideos;
+        }
+        matVideos.Add(new JsonObject
+        {
+            ["category_id"] = "",
+            ["category_name"] = "local",
+            ["check_flag"] = 63487,
+            ["crop"] = new JsonObject
+            {
+                ["lower_left_x"] = 0.0,
+                ["lower_left_y"] = 1.0,
+                ["lower_right_x"] = 1.0,
+                ["lower_right_y"] = 1.0,
+                ["upper_left_x"] = 0.0,
+                ["upper_left_y"] = 0.0,
+                ["upper_right_x"] = 1.0,
+                ["upper_right_y"] = 0.0
+            },
+            ["crop_ratio"] = "free",
+            ["crop_scale"] = 1.0,
+            ["duration"] = videoDurationUs,
+            ["extra_type"] = "option_empty",
+            ["id"] = vidMatId,
+            ["material_name"] = vidFileName,
+            ["path"] = cleanVidPath,
+            ["type"] = "video"
+        });
+
+        if (!materials.ContainsKey("audios") || materials["audios"] is not JsonArray matAudios)
+        {
+            matAudios = new JsonArray();
+            materials["audios"] = matAudios;
+        }
+        matAudios.Add(new JsonObject
+        {
+            ["category_id"] = "",
+            ["category_name"] = "local",
+            ["check_flag"] = 1,
+            ["duration"] = voiceDurationUs,
+            ["id"] = audMatId,
+            ["material_name"] = voiceFileName,
+            ["name"] = voiceFileName,
+            ["path"] = cleanVoicePath,
+            ["type"] = "music"
+        });
+
+        if (!materials.ContainsKey("canvases") || materials["canvases"] is not JsonArray matCanvases)
+        {
+            matCanvases = new JsonArray();
+            materials["canvases"] = matCanvases;
+        }
+        matCanvases.Add(new JsonObject
+        {
+            ["id"] = canvasId,
+            ["type"] = "canvas_color",
+            ["color"] = "#000000"
+        });
+
+        if (!materials.ContainsKey("speeds") || materials["speeds"] is not JsonArray matSpeeds)
+        {
+            matSpeeds = new JsonArray();
+            materials["speeds"] = matSpeeds;
+        }
+        matSpeeds.Add(new JsonObject { ["curve_speed"] = null, ["id"] = speedVidId, ["mode"] = 0, ["speed"] = 1.0, ["type"] = "speed" });
+        matSpeeds.Add(new JsonObject { ["curve_speed"] = null, ["id"] = speedAudId, ["mode"] = 0, ["speed"] = 1.0, ["type"] = "speed" });
+
+        if (!materials.ContainsKey("sound_channel_mappings") || materials["sound_channel_mappings"] is not JsonArray matScm)
+        {
+            matScm = new JsonArray();
+            materials["sound_channel_mappings"] = matScm;
+        }
+        matScm.Add(new JsonObject { ["audio_channel_mapping"] = 0, ["id"] = scmVidId, ["is_config_open"] = false, ["type"] = "" });
+        matScm.Add(new JsonObject { ["audio_channel_mapping"] = 0, ["id"] = scmAudId, ["is_config_open"] = false, ["type"] = "none" });
+
+        if (!materials.ContainsKey("vocal_separations") || materials["vocal_separations"] is not JsonArray matVoc)
+        {
+            matVoc = new JsonArray();
+            materials["vocal_separations"] = matVoc;
+        }
+        matVoc.Add(new JsonObject { ["choice"] = 0, ["id"] = vocVidId, ["removed_sounds"] = new JsonArray(), ["type"] = "vocal_separation" });
+        matVoc.Add(new JsonObject { ["choice"] = 0, ["id"] = vocAudId, ["removed_sounds"] = new JsonArray(), ["type"] = "vocal_separation" });
+
+        // Build main video segments with loop / cut to fit master duration
+        var newVideoSegments = BuildVideoSegments(
+            vidMatId, speedVidId, canvasId, scmVidId, vocVidId,
+            vTrimStartUs, effectiveVideoDurUs, finalDurationUs,
+            muteOriginalAudio, transitionCount, transitionType);
+
+        var newVoiceSegments = new JsonArray(
+            new JsonObject
+            {
+                ["id"] = Guid.NewGuid().ToString().ToUpperInvariant(),
+                ["material_id"] = audMatId,
+                ["render_index"] = 0,
+                ["source_timerange"] = new JsonObject
+                {
+                    ["start"] = voiceTrimStartUs,
+                    ["duration"] = effectiveVoiceDurUs
+                },
+                ["target_timerange"] = new JsonObject
+                {
+                    ["start"] = 0,
+                    ["duration"] = effectiveVoiceDurUs
+                },
+                ["render_timerange"] = new JsonObject
+                {
+                    ["start"] = 0,
+                    ["duration"] = 0
+                },
+                ["speed"] = 1.0,
+                ["volume"] = 1.0,
+                ["visible"] = true,
+                ["state"] = 0,
+                ["extra_material_refs"] = new JsonArray(speedAudId, scmAudId, vocAudId)
+            }
+        );
+
+        // Adjust tracks
+        bool replacedMainVideoTrack = false;
+        bool replacedMainAudioTrack = false;
+        double durationScaleRatio = (double)finalDurationUs / Math.Max(1_000_000, templateOrigDurUs);
+
+        if (root.ContainsKey("tracks") && root["tracks"] is JsonArray tracks)
+        {
+            foreach (var tNode in tracks)
+            {
+                if (tNode is not JsonObject track) continue;
+                var trackType = track["type"]?.ToString();
+                var trackFlag = track["flag"]?.GetValue<int>() ?? 0;
+
+                // Main video track replacement (flag 0 and first video track)
+                if (trackType == "video" && trackFlag == 0 && !replacedMainVideoTrack)
+                {
+                    track["segments"] = newVideoSegments;
+                    replacedMainVideoTrack = true;
+                    continue;
+                }
+
+                // Main voice track replacement (flag 0 and first audio track)
+                if (trackType == "audio" && trackFlag == 0 && !replacedMainAudioTrack)
+                {
+                    track["segments"] = newVoiceSegments;
+                    replacedMainAudioTrack = true;
+                    continue;
+                }
+
+                // Co-scale auxiliary tracks (Text, Sticker, Effects, Secondary BGM)
+                if (track.ContainsKey("segments") && track["segments"] is JsonArray segArray)
+                {
+                    foreach (var segNode in segArray)
+                    {
+                        if (segNode is not JsonObject seg) continue;
+                        if (seg.ContainsKey("target_timerange") && seg["target_timerange"] is JsonObject tt)
+                        {
+                            long origStart = tt["start"]?.GetValue<long>() ?? 0;
+                            long origDur = tt["duration"]?.GetValue<long>() ?? 0;
+
+                            // If segment spanned across the whole template duration, stretch it to full finalDurationUs
+                            if (origStart <= 100_000 && (origStart + origDur) >= (templateOrigDurUs - 300_000))
+                            {
+                                tt["start"] = 0;
+                                tt["duration"] = finalDurationUs;
+                                if (seg.ContainsKey("source_timerange") && seg["source_timerange"] is JsonObject st)
+                                {
+                                    st["start"] = 0;
+                                    st["duration"] = finalDurationUs;
+                                }
+                            }
+                            else
+                            {
+                                long newStart = (long)(origStart * durationScaleRatio);
+                                long newDur = Math.Min((long)(origDur * durationScaleRatio), Math.Max(500_000, finalDurationUs - newStart));
+                                tt["start"] = newStart;
+                                tt["duration"] = Math.Max(300_000, newDur);
+                                if (seg.ContainsKey("source_timerange") && seg["source_timerange"] is JsonObject st)
+                                {
+                                    st["duration"] = Math.Max(300_000, newDur);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: If no video track was present in template
+            if (!replacedMainVideoTrack)
+            {
+                tracks.Insert(0, new JsonObject
+                {
+                    ["attribute"] = 0,
+                    ["flag"] = 0,
+                    ["id"] = Guid.NewGuid().ToString().ToUpperInvariant(),
+                    ["is_default_name"] = true,
+                    ["name"] = "",
+                    ["type"] = "video",
+                    ["segments"] = newVideoSegments
+                });
+            }
+
+            // Fallback: If no audio track was present in template
+            if (!replacedMainAudioTrack)
+            {
+                tracks.Add(new JsonObject
+                {
+                    ["attribute"] = 0,
+                    ["flag"] = 0,
+                    ["id"] = Guid.NewGuid().ToString().ToUpperInvariant(),
+                    ["is_default_name"] = true,
+                    ["name"] = "",
+                    ["type"] = "audio",
+                    ["segments"] = newVoiceSegments
+                });
+            }
+        }
+
+        return root;
     }
 
     private static JsonObject BuildTimelineDraftContent(
@@ -286,81 +716,12 @@ public class CapCutDraftService : ICapCutDraftService
         var vidFileName = Path.GetFileName(videoPath);
         var voiceFileName = Path.GetFileName(voicePath);
 
-        var finalDurationUs = Math.Max(effectiveVideoDurUs, masterDurationUs);
+        var finalDurationUs = masterDurationUs > 0 ? masterDurationUs : effectiveVideoDurUs;
 
-        var videoSegments = new JsonArray();
-        int numCuts = (transitionCount > 0 && transitionType != AutoVideoEditor.Core.Enums.TransitionType.None && effectiveVideoDurUs >= 3_000_000)
-            ? Math.Min(transitionCount + 1, 6)
-            : 1;
-
-        if (numCuts > 1)
-        {
-            long segDur = effectiveVideoDurUs / numCuts;
-            long currentTargetStart = 0;
-            for (int s = 0; s < numCuts; s++)
-            {
-                long thisSegDur = (s == numCuts - 1) ? (effectiveVideoDurUs - currentTargetStart) : segDur;
-                long thisSourceStart = vTrimStartUs + (s * segDur);
-
-                videoSegments.Add(new JsonObject
-                {
-                    ["id"] = Guid.NewGuid().ToString().ToUpperInvariant(),
-                    ["material_id"] = vidMatId,
-                    ["render_index"] = 0,
-                    ["source_timerange"] = new JsonObject
-                    {
-                        ["start"] = thisSourceStart,
-                        ["duration"] = thisSegDur
-                    },
-                    ["target_timerange"] = new JsonObject
-                    {
-                        ["start"] = currentTargetStart,
-                        ["duration"] = thisSegDur
-                    },
-                    ["render_timerange"] = new JsonObject
-                    {
-                        ["start"] = 0,
-                        ["duration"] = 0
-                    },
-                    ["speed"] = 1.0,
-                    ["volume"] = muteOriginalAudio ? 0.0 : 1.0,
-                    ["visible"] = true,
-                    ["state"] = 0,
-                    ["extra_material_refs"] = new JsonArray(speedVidId, canvasId, scmVidId, vocVidId)
-                });
-
-                currentTargetStart += thisSegDur;
-            }
-        }
-        else
-        {
-            videoSegments.Add(new JsonObject
-            {
-                ["id"] = segVidId,
-                ["material_id"] = vidMatId,
-                ["render_index"] = 0,
-                ["source_timerange"] = new JsonObject
-                {
-                    ["start"] = vTrimStartUs,
-                    ["duration"] = effectiveVideoDurUs
-                },
-                ["target_timerange"] = new JsonObject
-                {
-                    ["start"] = 0,
-                    ["duration"] = effectiveVideoDurUs
-                },
-                ["render_timerange"] = new JsonObject
-                {
-                    ["start"] = 0,
-                    ["duration"] = 0
-                },
-                ["speed"] = 1.0,
-                ["volume"] = muteOriginalAudio ? 0.0 : 1.0,
-                ["visible"] = true,
-                ["state"] = 0,
-                ["extra_material_refs"] = new JsonArray(speedVidId, canvasId, scmVidId, vocVidId)
-            });
-        }
+        var videoSegments = BuildVideoSegments(
+            vidMatId, speedVidId, canvasId, scmVidId, vocVidId,
+            vTrimStartUs, effectiveVideoDurUs, finalDurationUs,
+            muteOriginalAudio, transitionCount, transitionType);
 
         var root = new JsonObject
         {
@@ -705,9 +1066,137 @@ public class CapCutDraftService : ICapCutDraftService
             cancellationToken).ConfigureAwait(false);
     }
 
+    private static JsonArray BuildVideoSegments(
+        string vidMatId,
+        string speedVidId,
+        string canvasId,
+        string scmVidId,
+        string vocVidId,
+        long vTrimStartUs,
+        long effectiveVideoDurUs,
+        long finalDurationUs,
+        bool muteOriginalAudio,
+        int transitionCount,
+        AutoVideoEditor.Core.Enums.TransitionType transitionType)
+    {
+        var videoSegments = new JsonArray();
+        long currentTargetStart = 0;
+
+        int numCuts = (transitionCount > 0 && transitionType != AutoVideoEditor.Core.Enums.TransitionType.None && effectiveVideoDurUs >= 3_000_000)
+            ? Math.Min(transitionCount + 1, 6)
+            : 1;
+
+        if (effectiveVideoDurUs >= finalDurationUs)
+        {
+            if (numCuts > 1)
+            {
+                long segTargetDur = finalDurationUs / numCuts;
+                long segSourceDur = effectiveVideoDurUs / numCuts;
+                for (int s = 0; s < numCuts; s++)
+                {
+                    long thisTargetDur = (s == numCuts - 1) ? (finalDurationUs - currentTargetStart) : segTargetDur;
+                    long thisSourceDur = Math.Min(thisTargetDur, segSourceDur);
+                    long thisSourceStart = vTrimStartUs + (s * segSourceDur);
+
+                    videoSegments.Add(CreateVideoSegment(
+                        vidMatId, speedVidId, canvasId, scmVidId, vocVidId,
+                        thisSourceStart, thisSourceDur, currentTargetStart, thisTargetDur,
+                        muteOriginalAudio));
+
+                    currentTargetStart += thisTargetDur;
+                }
+            }
+            else
+            {
+                videoSegments.Add(CreateVideoSegment(
+                    vidMatId, speedVidId, canvasId, scmVidId, vocVidId,
+                    vTrimStartUs, finalDurationUs, 0, finalDurationUs,
+                    muteOriginalAudio));
+            }
+        }
+        else
+        {
+            // Video is shorter than finalDurationUs: Loop/repeat video to fill voice master duration
+            while (currentTargetStart < finalDurationUs)
+            {
+                long remainingTargetUs = finalDurationUs - currentTargetStart;
+                long chunkTargetUs = Math.Min(remainingTargetUs, effectiveVideoDurUs);
+
+                if (numCuts > 1 && chunkTargetUs >= 3_000_000)
+                {
+                    long subSegDur = chunkTargetUs / numCuts;
+                    for (int s = 0; s < numCuts; s++)
+                    {
+                        long thisTargetDur = (s == numCuts - 1) ? (chunkTargetUs - (s * subSegDur)) : subSegDur;
+                        long thisSourceStart = vTrimStartUs + (s * subSegDur);
+
+                        videoSegments.Add(CreateVideoSegment(
+                            vidMatId, speedVidId, canvasId, scmVidId, vocVidId,
+                            thisSourceStart, thisTargetDur, currentTargetStart, thisTargetDur,
+                            muteOriginalAudio));
+
+                        currentTargetStart += thisTargetDur;
+                    }
+                }
+                else
+                {
+                    videoSegments.Add(CreateVideoSegment(
+                        vidMatId, speedVidId, canvasId, scmVidId, vocVidId,
+                        vTrimStartUs, chunkTargetUs, currentTargetStart, chunkTargetUs,
+                        muteOriginalAudio));
+
+                    currentTargetStart += chunkTargetUs;
+                }
+            }
+        }
+
+        return videoSegments;
+    }
+
+    private static JsonObject CreateVideoSegment(
+        string vidMatId,
+        string speedVidId,
+        string canvasId,
+        string scmVidId,
+        string vocVidId,
+        long sourceStartUs,
+        long sourceDurUs,
+        long targetStartUs,
+        long targetDurUs,
+        bool muteOriginalAudio)
+    {
+        return new JsonObject
+        {
+            ["id"] = Guid.NewGuid().ToString().ToUpperInvariant(),
+            ["material_id"] = vidMatId,
+            ["render_index"] = 0,
+            ["source_timerange"] = new JsonObject
+            {
+                ["start"] = sourceStartUs,
+                ["duration"] = sourceDurUs
+            },
+            ["target_timerange"] = new JsonObject
+            {
+                ["start"] = targetStartUs,
+                ["duration"] = targetDurUs
+            },
+            ["render_timerange"] = new JsonObject
+            {
+                ["start"] = 0,
+                ["duration"] = 0
+            },
+            ["speed"] = 1.0,
+            ["volume"] = muteOriginalAudio ? 0.0 : 1.0,
+            ["visible"] = true,
+            ["state"] = 0,
+            ["extra_material_refs"] = new JsonArray(speedVidId, canvasId, scmVidId, vocVidId)
+        };
+    }
+
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
         return new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim();
     }
 }
+
