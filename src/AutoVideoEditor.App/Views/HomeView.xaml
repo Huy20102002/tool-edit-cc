@@ -431,13 +431,27 @@
 
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="{Binding MatchSummaryText}" FontSize="14" FontWeight="SemiBold" Foreground="#10b981" />
-                            <TextBlock Text="Cắt khoảng lặng tự động, phân bố chuyển cảnh thông minh và xuất hàng loạt trong nền." FontSize="12" Foreground="#71717a" Margin="0,2,0,0" />
+                            <TextBlock Text="Cắt khoảng lặng tự động, phân bố chuyển cảnh thông minh và xuất hàng loạt trong nền hoặc đưa thẳng vào CapCut." FontSize="12" Foreground="#71717a" Margin="0,2,0,0" />
                         </StackPanel>
 
-                        <!-- BIG ACTION BUTTON -->
-                        <Button Grid.Column="1" Content="⚡ TỰ ĐỘNG TẠO VIDEO" Style="{StaticResource PrimaryButtonStyle}"
-                                Command="{Binding AutoCreateVideosCommand}" IsEnabled="{Binding HasValidJobs}"
-                                FontSize="16" FontWeight="Bold" Padding="32,14" Height="50" />
+                        <!-- ACTION BUTTONS -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="🎬 XUẤT DỰ ÁN CAPCUT" 
+                                    Command="{Binding ExportToCapCutCommand}" IsEnabled="{Binding HasValidJobs}"
+                                    ToolTip="Tạo 1 Project CapCut PC với nhiều Dòng thời gian (Multi-Timeline: Dòng thời gian 01, 02...) đã xếp sẵn Video + Voice"
+                                    FontSize="14" FontWeight="Bold" Padding="20,12" Height="50" Margin="0,0,12,0"
+                                    Background="#6366f1" Foreground="#ffffff" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button Content="⚡ TỰ ĐỘNG TẠO VIDEO" Style="{StaticResource PrimaryButtonStyle}"
+                                    Command="{Binding AutoCreateVideosCommand}" IsEnabled="{Binding HasValidJobs}"
+                                    FontSize="15" FontWeight="Bold" Padding="24,12" Height="50" />
+                        </StackPanel>
                     </Grid>
                 </Grid>
             </Border>

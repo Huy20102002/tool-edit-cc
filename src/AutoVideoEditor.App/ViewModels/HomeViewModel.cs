@@ -225,18 +225,28 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     private string _outputDirectory = string.Empty;
 
+    [ObservableProperty]
+    private string _capCutProjectName = string.Empty;
+
+    [ObservableProperty]
+    private bool _isExportingToCapCut;
+
+    private readonly ICapCutDraftService _capCutDraftService;
+
     public HomeViewModel(
         IPresetService presetService,
         ISettingsService settingsService,
         IJobManager jobManager,
         ILogService logService,
-        IFFprobeService probeService)
+        IFFprobeService probeService,
+        ICapCutDraftService capCutDraftService)
     {
         _presetService = presetService;
         _settingsService = settingsService;
         _jobManager = jobManager;
         _logService = logService;
         _probeService = probeService;
+        _capCutDraftService = capCutDraftService;
 
         _ = LoadInitialDataAsync();
     }
@@ -593,6 +603,88 @@ public partial class HomeViewModel : ObservableObject
         // Switch to Queue View and start queue
         NavigateToQueueRequested?.Invoke();
         _ = Task.Run(() => _jobManager.StartQueueAsync());
+    }
+
+    [RelayCommand]
+    public async Task ExportToCapCutAsync()
+    {
+        var validPairs = MatchedPairs.Where(p => p.HasVoice).ToList();
+        if (validPairs.Count == 0)
+        {
+            System.Windows.MessageBox.Show(
+                "Chưa có cặp Video + Voice nào hợp lệ để xuất dự án CapCut. Vui lòng thêm ít nhất một video và voice.",
+                "Thông báo",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        var projectName = !string.IsNullOrWhiteSpace(CapCutProjectName)
+            ? CapCutProjectName.Trim()
+            : (!string.IsNullOrWhiteSpace(BaseOutputName) ? BaseOutputName.Trim() : $"Dự án CapCut_{DateTime.Now:yyyyMMdd_HHmm}");
+
+        IsExportingToCapCut = true;
+        try
+        {
+            var exportItems = validPairs.Select((p, idx) => new CapCutExportItem
+            {
+                OrderIndex = idx + 1,
+                VideoPath = p.VideoPath,
+                VoicePath = p.VoicePath,
+                VideoDurationSeconds = p.VideoDurationSeconds,
+                VoiceDurationSeconds = p.VoiceDurationSeconds,
+                VideoTrimStartSeconds = p.VideoTrimStart,
+                VideoTrimEndSeconds = p.VideoTrimEnd,
+                VoiceTrimStartSeconds = p.VoiceTrimStart,
+                VoiceTrimEndSeconds = p.VoiceTrimEnd,
+                ExtraEndPaddingSeconds = p.ExtraEndPadding
+            }).ToList();
+
+            var result = await _capCutDraftService.ExportMultiTimelineProjectAsync(projectName, exportItems);
+            if (result.Success)
+            {
+                var ask = System.Windows.MessageBox.Show(
+                    $"✓ Đã xuất thành công Dự Án CapCut Multi-Timeline!\n\n" +
+                    $"• Tên Dự Án: {result.ProjectName}\n" +
+                    $"• Số Dòng Thời Gian (Timelines): {result.TimelinesCount}\n" +
+                    $"• Vị trí lưu: {result.ProjectDirectory}\n\n" +
+                    $"Dự án đã tự động xuất hiện ở màn hình chính của CapCut PC.\n" +
+                    $"Bạn có muốn mở thư mục dự án này ngay không?",
+                    "Xuất Dự Án CapCut Thành Công",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Information);
+
+                if (ask == System.Windows.MessageBoxResult.Yes && Directory.Exists(result.ProjectDirectory))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{result.ProjectDirectory}\"",
+                        UseShellExecute = true
+                    });
+                }
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    $"Không thể tạo dự án CapCut:\n{result.ErrorMessage}",
+                    "Lỗi",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Đã xảy ra lỗi khi xuất dự án CapCut:\n{ex.Message}",
+                "Lỗi",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsExportingToCapCut = false;
+        }
     }
 
     public void AddVideoFiles(IEnumerable<string> files)

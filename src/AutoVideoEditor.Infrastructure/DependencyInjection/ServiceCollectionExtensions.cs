@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFFmpegProcessRunner, FFmpegProcessRunner>();
         services.AddSingleton<IFFprobeService, FFprobeService>();
         services.AddSingleton<IHardwareDetector, HardwareDetector>();
+        services.AddSingleton<ICapCutDraftService, CapCut.CapCutDraftService>();
 
         // Audio Engine
         services.AddSingleton<ISilenceDetector, SilenceDetector>();
