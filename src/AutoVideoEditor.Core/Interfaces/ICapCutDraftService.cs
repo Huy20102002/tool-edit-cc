@@ -1,3 +1,5 @@
+using AutoVideoEditor.Core.Enums;
+
 namespace AutoVideoEditor.Core.Interfaces;
 
 public class CapCutExportItem
@@ -12,6 +14,9 @@ public class CapCutExportItem
     public double VoiceTrimStartSeconds { get; set; }
     public double VoiceTrimEndSeconds { get; set; }
     public double ExtraEndPaddingSeconds { get; set; }
+    public bool MuteOriginalAudio { get; set; } = true;
+    public int TransitionCount { get; set; } = 2;
+    public TransitionType TransitionType { get; set; } = TransitionType.Smart;
 }
 
 public class CapCutExportResult

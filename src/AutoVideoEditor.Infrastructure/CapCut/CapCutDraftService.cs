@@ -156,6 +156,9 @@ public class CapCutDraftService : ICapCutDraftService
                     voiceTrimStartUs,
                     effectiveVoiceDurUs,
                     masterDurationUs,
+                    item.MuteOriginalAudio,
+                    item.TransitionCount,
+                    item.TransitionType,
                     nowTimestampUs);
 
                 var timelineJsonStr = timelineContent.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
@@ -259,6 +262,9 @@ public class CapCutDraftService : ICapCutDraftService
         long voiceTrimStartUs,
         long effectiveVoiceDurUs,
         long masterDurationUs,
+        bool muteOriginalAudio,
+        int transitionCount,
+        AutoVideoEditor.Core.Enums.TransitionType transitionType,
         long timestampUs)
     {
         var vidMatId = Guid.NewGuid().ToString().ToUpperInvariant();
@@ -281,6 +287,80 @@ public class CapCutDraftService : ICapCutDraftService
         var voiceFileName = Path.GetFileName(voicePath);
 
         var finalDurationUs = Math.Max(effectiveVideoDurUs, masterDurationUs);
+
+        var videoSegments = new JsonArray();
+        int numCuts = (transitionCount > 0 && transitionType != AutoVideoEditor.Core.Enums.TransitionType.None && effectiveVideoDurUs >= 3_000_000)
+            ? Math.Min(transitionCount + 1, 6)
+            : 1;
+
+        if (numCuts > 1)
+        {
+            long segDur = effectiveVideoDurUs / numCuts;
+            long currentTargetStart = 0;
+            for (int s = 0; s < numCuts; s++)
+            {
+                long thisSegDur = (s == numCuts - 1) ? (effectiveVideoDurUs - currentTargetStart) : segDur;
+                long thisSourceStart = vTrimStartUs + (s * segDur);
+
+                videoSegments.Add(new JsonObject
+                {
+                    ["id"] = Guid.NewGuid().ToString().ToUpperInvariant(),
+                    ["material_id"] = vidMatId,
+                    ["render_index"] = 0,
+                    ["source_timerange"] = new JsonObject
+                    {
+                        ["start"] = thisSourceStart,
+                        ["duration"] = thisSegDur
+                    },
+                    ["target_timerange"] = new JsonObject
+                    {
+                        ["start"] = currentTargetStart,
+                        ["duration"] = thisSegDur
+                    },
+                    ["render_timerange"] = new JsonObject
+                    {
+                        ["start"] = 0,
+                        ["duration"] = 0
+                    },
+                    ["speed"] = 1.0,
+                    ["volume"] = muteOriginalAudio ? 0.0 : 1.0,
+                    ["visible"] = true,
+                    ["state"] = 0,
+                    ["extra_material_refs"] = new JsonArray(speedVidId, canvasId, scmVidId, vocVidId)
+                });
+
+                currentTargetStart += thisSegDur;
+            }
+        }
+        else
+        {
+            videoSegments.Add(new JsonObject
+            {
+                ["id"] = segVidId,
+                ["material_id"] = vidMatId,
+                ["render_index"] = 0,
+                ["source_timerange"] = new JsonObject
+                {
+                    ["start"] = vTrimStartUs,
+                    ["duration"] = effectiveVideoDurUs
+                },
+                ["target_timerange"] = new JsonObject
+                {
+                    ["start"] = 0,
+                    ["duration"] = effectiveVideoDurUs
+                },
+                ["render_timerange"] = new JsonObject
+                {
+                    ["start"] = 0,
+                    ["duration"] = 0
+                },
+                ["speed"] = 1.0,
+                ["volume"] = muteOriginalAudio ? 0.0 : 1.0,
+                ["visible"] = true,
+                ["state"] = 0,
+                ["extra_material_refs"] = new JsonArray(speedVidId, canvasId, scmVidId, vocVidId)
+            });
+        }
 
         var root = new JsonObject
         {
@@ -312,7 +392,7 @@ public class CapCutDraftService : ICapCutDraftService
                 ["subtitle_sync"] = true,
                 ["subtitle_taskinfo"] = new JsonArray(),
                 ["system_font_list"] = new JsonArray(),
-                ["video_mute"] = false,
+                ["video_mute"] = muteOriginalAudio,
                 ["zoom_info_params"] = null
             },
             ["cover"] = null,
@@ -505,34 +585,7 @@ public class CapCutDraftService : ICapCutDraftService
                     ["is_default_name"] = true,
                     ["name"] = "",
                     ["type"] = "video",
-                    ["segments"] = new JsonArray(
-                        new JsonObject
-                        {
-                            ["id"] = segVidId,
-                            ["material_id"] = vidMatId,
-                            ["render_index"] = 0,
-                            ["source_timerange"] = new JsonObject
-                            {
-                                ["start"] = vTrimStartUs,
-                                ["duration"] = effectiveVideoDurUs
-                            },
-                            ["target_timerange"] = new JsonObject
-                            {
-                                ["start"] = 0,
-                                ["duration"] = effectiveVideoDurUs
-                            },
-                            ["render_timerange"] = new JsonObject
-                            {
-                                ["start"] = 0,
-                                ["duration"] = 0
-                            },
-                            ["speed"] = 1.0,
-                            ["volume"] = 1.0,
-                            ["visible"] = true,
-                            ["state"] = 0,
-                            ["extra_material_refs"] = new JsonArray(speedVidId, canvasId, scmVidId, vocVidId)
-                        }
-                    )
+                    ["segments"] = videoSegments
                 },
                 // Track 2: Audio/Voice
                 new JsonObject

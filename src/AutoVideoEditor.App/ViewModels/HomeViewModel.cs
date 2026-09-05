@@ -122,6 +122,10 @@ public partial class MatchedPairItem : ObservableObject
     [ObservableProperty]
     private bool _enableSilenceRemoval = true;
 
+    // Per-job mute original video audio toggle
+    [ObservableProperty]
+    private bool _muteOriginalAudio = true;
+
     [ObservableProperty]
     private string _customOutputName = string.Empty;
 
@@ -204,6 +208,25 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     private bool _enableSilenceRemoval = true;
 
+    partial void OnEnableSilenceRemovalChanged(bool value)
+    {
+        foreach (var pair in MatchedPairs)
+        {
+            pair.EnableSilenceRemoval = value;
+        }
+    }
+
+    [ObservableProperty]
+    private bool _muteOriginalAudio = true;
+
+    partial void OnMuteOriginalAudioChanged(bool value)
+    {
+        foreach (var pair in MatchedPairs)
+        {
+            pair.MuteOriginalAudio = value;
+        }
+    }
+
     [ObservableProperty]
     private bool _enableSmartCut = true;
 
@@ -270,14 +293,6 @@ public partial class HomeViewModel : ObservableObject
         catch
         {
             // Ignore probe errors in UI
-        }
-    }
-
-    partial void OnEnableSilenceRemovalChanged(bool value)
-    {
-        foreach (var pair in MatchedPairs)
-        {
-            pair.EnableSilenceRemoval = value;
         }
     }
 
@@ -637,7 +652,10 @@ public partial class HomeViewModel : ObservableObject
                 VideoTrimEndSeconds = p.VideoTrimEnd,
                 VoiceTrimStartSeconds = p.VoiceTrimStart,
                 VoiceTrimEndSeconds = p.VoiceTrimEnd,
-                ExtraEndPaddingSeconds = p.ExtraEndPadding
+                ExtraEndPaddingSeconds = p.ExtraEndPadding,
+                MuteOriginalAudio = p.MuteOriginalAudio,
+                TransitionCount = p.TransitionCount,
+                TransitionType = p.TransitionType
             }).ToList();
 
             var result = await _capCutDraftService.ExportMultiTimelineProjectAsync(projectName, exportItems);
